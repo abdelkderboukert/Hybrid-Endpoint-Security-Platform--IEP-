@@ -2,30 +2,32 @@ from django.shortcuts import render
 from rest_framework.generics import RetrieveUpdateAPIView, CreateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
-from .serializers import CustomUserSerializer, RregisterUserSerializer, LoginUserSerializer
+from .serializers import AdminSerializer, RegisterAdminSerializer, LoginAdminSerializer
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.exceptions import InvalidToken
+from django.contrib.auth import get_user_model
+
+Admin = get_user_model()
 
 
-class UserInfoView(RetrieveUpdateAPIView):
+class AdminInfoView(RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = CustomUserSerializer
+    serializer_class = AdminSerializer
 
     def get_object(self):
         return self.request.user
-    
 
-class UserRegisterView(CreateAPIView):
-    serializer_class = RregisterUserSerializer
+class AdminRegisterView(CreateAPIView):
+    serializer_class = RegisterAdminSerializer
     # permission_classes = [IsAuthenticated]
 
 class LoginView(APIView):
     def post(self, request):
-        serializer = LoginUserSerializer(data=request.data)
+        serializer = LoginAdminSerializer(data=request.data)
         
         if serializer.is_valid():
             user = serializer.validated_data
@@ -33,8 +35,8 @@ class LoginView(APIView):
             access_token = str(refresh.access_token)
             
             response = Response({
-                "user": CustomUserSerializer(user).data},
-                                status=status.HTTP_200_OK)
+                "user": AdminSerializer(user).data},
+                status=status.HTTP_200_OK)
             
             response.set_cookie(key="access_token", 
                                 value=access_token,
@@ -66,11 +68,10 @@ class LogoutView(APIView):
         response.delete_cookie("access_token")
         response.delete_cookie("refresh_token")
         
-        return response    
+        return response     
 
 class CookieTokenRefreshView(TokenRefreshView):
     def post(self, request):
-        
         refresh_token = request.COOKIES.get("refresh_token")
         
         if not refresh_token:
@@ -80,7 +81,7 @@ class CookieTokenRefreshView(TokenRefreshView):
             refresh = RefreshToken(refresh_token)
             access_token = str(refresh.access_token)
             
-            response = Response({"message": "Access token token refreshed successfully"}, status=status.HTTP_200_OK)
+            response = Response({"message": "Access token refreshed successfully"}, status=status.HTTP_200_OK)
             response.set_cookie(key="access_token", 
                                 value=access_token,
                                 httponly=True,

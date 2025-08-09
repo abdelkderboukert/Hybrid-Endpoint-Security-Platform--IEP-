@@ -1,37 +1,34 @@
 from rest_framework import serializers
-from .models import CustomUser
+from .models import Admin
 from django.contrib.auth import authenticate
 
-class CustomUserSerializer(serializers.ModelSerializer):
+class AdminSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CustomUser
-        fields = ['id', 'username', 'email', 'first_name', 'last_name']
+        model = Admin
+        fields = ['admin_id', 'username', 'email', 'layer', 'is_active']
 
-
-class RregisterUserSerializer(serializers.ModelSerializer):
+class RegisterAdminSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CustomUser
-        fields = ['email', 'username', 'password']
+        model = Admin
+        fields = ['username', 'email', 'password']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
-        # user = CustomUser(
-        #     email=validated_data['email'],
-        #     username=validated_data['username']
-        # )
-        # user.set_password(validated_data['password'])
-        user = CustomUser.objects.create_user(**validated_data)
-        user.save()
+        user = Admin.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data['password']
+        )
         return user
-    
 
-
-class LoginUserSerializer(serializers.Serializer):
+class LoginAdminSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True)
     
     def validate(self, data):
-        user = authenticate(**data)
-        if user and user.is_active:
-            return user
+        # Authenticate using email since USERNAME_FIELD is 'username' but login is via email
+        user = Admin.objects.get(email=data['email'])
+        if user and user.check_password(data['password']):
+            if user.is_active:
+                return user
         raise serializers.ValidationError("Incorrect credentials!")
