@@ -15,7 +15,7 @@ Admin = get_user_model()
 
 
 class AdminInfoView(RetrieveUpdateAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticated,)
     serializer_class = AdminSerializer
 
     def get_object(self):

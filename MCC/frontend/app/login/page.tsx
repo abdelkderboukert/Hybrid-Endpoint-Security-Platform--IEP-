@@ -1,60 +1,61 @@
+// pages/login.tsx
 "use client";
-import React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginUser } from "../../utils/auth";
+import { useAuth } from "@/Context/AuthContext";
+import { User } from "@/types/auth";
 
-export default function LoginPage() {
-	const [password, setPassword] = useState<string>("");
-	const [email, setEmail] = useState<string>("");
-    const router = useRouter();
-	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-		e.preventDefault();
-		if (password === "" || email === "") {
-			return;
-		}
-		try {
-			await loginUser(email, password);
-			alert("Yay! Logged in successfully!");
-            router.push("/"); 
-		} catch (e) {
-			alert("OOps!");
-            console.error("Login error:", e);
-		}
-	};
-	return (
-		<div className="min-h-screen bg-gray-100 items-center flex flex-col justify-center">
-			<form
-				onSubmit={handleSubmit}
-				className="bg-gray-600 p-8 flex flex-col rounded-lg"
-			>
-				<label>Email</label>
-				<input
-					className="text-gray-600"
-					type="email"
-					value={email}
-					required
-					onChange={(e) => {
-						setEmail(e.target.value);
-					}}
-				/>
-				<br />
+const LoginPage = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth();
+  const router = useRouter();
 
-				<label>Password</label>
-				<input
-					className="text-gray-600"
-					type="password"
-					value={password}
-					required
-					onChange={(e) => {
-						setPassword(e.target.value);
-					}}
-				/>
-				<br />
-                <button
-                className="bg-blue-400 p-1 rounded-sm"
-                type="submit">Login</button>
-			</form>
-		</div>
-	);
-}
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      // Await the user data from the login function
+      //@ts-expect-error this is to handle the error type
+      const user: User = await login(email, password); // Use the user's ID to construct the dynamic URL
+      router.push(`/admin/${user.admin_id}/dashboard`);
+    } catch (error) {
+      console.error("Login error:", error); // @ts-expect-error this is to handle the error type
+      setError(error.message || "Login failed. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="">
+      <form onSubmit={handleSubmit}>
+        <h2>Login</h2> {error && <p style={{ color: "red" }}>{error}</p>}
+        {isLoading && <p>Logging in...</p>}
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          disabled={isLoading}
+        />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
+          disabled={isLoading}
+        />
+        <button type="submit" disabled={isLoading}>
+        Login
+        </button>
+      </form>
+    </div>
+  );
+};
+
+export default LoginPage;
