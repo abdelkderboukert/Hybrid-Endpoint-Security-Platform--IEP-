@@ -5,6 +5,20 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.utils import timezone
 from .managers import AdminManager # Assuming you have this manager in a separate file
 
+
+
+class LicenseKey(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    key = models.CharField(max_length=255, unique=True, help_text="The actual license key string.")
+    is_active = models.BooleanField(default=False, help_text="True if this key has been assigned to an admin.")
+    # A One-to-One link ensures one key can only be assigned to one Layer 0 admin
+    assigned_admin = models.OneToOneField('Admin', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_license')
+    date_created = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.key
+    
+
 # ---
 # 1. Admins Model
 # ---
@@ -15,8 +29,9 @@ class Admin(AbstractBaseUser):
     email = models.EmailField(unique=True)
     parent_admin_id = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='children')
     layer = models.IntegerField(default=0)
-    licence_key = models.CharField(max_length=255, null=True, blank=True, unique=True)
-    is_key_active = models.BooleanField(default=False)
+    # licence_key = models.CharField(max_length=255, null=True, blank=True, unique=True)
+    # is_key_active = models.BooleanField(default=False)
+    license = models.ForeignKey(LicenseKey, on_delete=models.CASCADE, null=True, blank=True, related_name='admins')
     server_id = models.ForeignKey('Server', on_delete=models.CASCADE, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -88,6 +103,7 @@ class User(models.Model):
     parent_admin_id = models.ForeignKey('Admin', on_delete=models.SET_NULL, null=True, blank=True)
     email = models.EmailField(unique=True)
     associated_device_ids = models.JSONField(default=list, blank=True)
+    license = models.ForeignKey(LicenseKey, on_delete=models.CASCADE, null=True, blank=True, related_name='users')
 
     def __str__(self):
         return self.username

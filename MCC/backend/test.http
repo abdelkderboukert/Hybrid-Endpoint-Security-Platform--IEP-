@@ -1,0 +1,195 @@
+# This file allows you to test your Django API endpoints.
+# Variables are used to store tokens and IDs from responses.
+
+# --- VARIABLES ---
+@baseUrl = http://localhost:8000/api
+@accessToken =
+@refreshToken =
+
+# Will be captured after creation
+@topAdminUsername = superadmin
+@topAdminEmail = super@admin.com
+@topAdminPassword = StrongPassword!123
+
+@subAdminUsername = subadmin_l1
+@subAdminEmail = subadmin_l1@test.com
+@subAdminPassword = AnotherStrongPass!456
+
+@regularUsername = testuser_01
+@regularUserEmail = testuser_01@test.com
+
+@serverId =
+@deviceId =
+
+
+###
+# 1. (PUBLIC) Register a new top-level Admin (Layer 0)
+# This admin will be our main user for testing.
+POST {{baseUrl}}/register/
+Content-Type: application/json
+
+{
+    "username": "{{topAdminUsername}}",
+    "email": "{{topAdminEmail}}",
+    "password": "{{topAdminPassword}}",
+    "password2": "{{topAdminPassword}}"
+}
+
+###
+# NOTE: If you have email verification enabled, you must go to your
+# Django console, copy the verification link, and execute it before logging in.
+
+
+###
+# 2. (PUBLIC) Login as the top-level Admin to get tokens
+# @name loginRequest allows us to reference this request's response.
+@name loginRequest
+POST {{baseUrl}}/login/
+Content-Type: application/json
+
+{
+    "username": "{{topAdminUsername}}",
+    "password": "{{topAdminPassword}}"
+}
+
+# Capture the access token from the response body into a variable
+> {%
+    client.global.set("accessToken", response.body.access);
+%}
+
+###
+# 3. (AUTH) Get own profile details
+# The {{accessToken}} variable is now automatically used.
+GET {{baseUrl}}/profile/
+Authorization: Bearer {{accessToken}}
+
+
+###
+# 4. (AUTH) Update own profile (e.g., change email)
+PATCH {{baseUrl}}/profile/
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+    "email": "super_admin_new@admin.com"
+}
+
+
+###
+# 5. (AUTH) Create a Server
+@name createServerRequest
+POST {{baseUrl}}/servers/
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+    "server_type": "Cloud"
+}
+
+> {%
+    client.global.set("serverId", response.body.server_id);
+%}
+
+
+###
+# 6. (AUTH) Create a Device linked to the new Server
+@name createDeviceRequest
+POST {{baseUrl}}/devices/
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+    "device_name": "Main Workstation",
+    "os": "Windows 11",
+    "server_id": "{{serverId}}"
+}
+
+> {%
+    client.global.set("deviceId", response.body.device_id);
+%}
+
+
+###
+# 7. (AUTH) Create a Sub-Admin at Layer 1
+# This should succeed because the top admin is Layer 0, and 1 = 0 + 1.
+POST {{baseUrl}}/network/admins/create/
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+    "username": "{{subAdminUsername}}",
+    "email": "{{subAdminEmail}}",
+    "password": "{{subAdminPassword}}",
+    "password2": "{{subAdminPassword}}",
+    "layer": 1
+}
+
+
+###
+# 8. (AUTH) Create a User
+POST {{baseUrl}}/network/users/create/
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+    "username": "{{regularUsername}}",
+    "email": "{{regularUserEmail}}"
+}
+
+
+###
+# 9. (AUTH) List all Admins in the network
+# Should show the sub-admin we just created.
+GET {{baseUrl}}/network/admins/
+Authorization: Bearer {{accessToken}}
+
+
+###
+# 10. (AUTH) List all Users in the network
+# Should show the user we just created.
+GET {{baseUrl}}/network/users/
+Authorization: Bearer {{accessToken}}
+
+
+###
+# 11. (AUTH) List all Servers in the network
+GET {{baseUrl}}/servers/
+Authorization: Bearer {{accessToken}}
+
+
+###
+# 12. (AUTH) List all Devices in the network
+GET {{baseUrl}}/devices/
+Authorization: Bearer {{accessToken}}
+
+
+###
+# 13. (AUTH) Update the device we created
+PATCH {{baseUrl}}/devices/{{deviceId}}/
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+    "is_isolated": true
+}
+
+
+###
+# 14. (AUTH) Delete the device we created
+DELETE {{baseUrl}}/devices/{{deviceId}}/
+Authorization: Bearer {{accessToken}}
+
+
+###
+# 15. (AUTH) Refresh the access token
+# NOTE: The REST Client automatically handles sending the refresh_token cookie.
+# The request body should be empty, as our custom view reads from the cookie.
+POST {{baseUrl}}/token/refresh/
+Authorization: Bearer {{accessToken}}
+
+
+###
+# 16. (AUTH) Logout
+# This should invalidate the tokens and delete the cookies.
+POST {{baseUrl}}/logout/
+Authorization: Bearer {{accessToken}}
