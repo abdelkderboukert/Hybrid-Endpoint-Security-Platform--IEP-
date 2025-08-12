@@ -7,7 +7,9 @@ from .serializers import AdminRegisterSerializer, AdminDetailSerializer
 from dj_rest_auth.views import LoginView, LogoutView
 from .serializers import MyTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenRefreshView
 from .models import Admin
+from rest_framework_simplejwt.tokens import AccessToken
 
 from django.conf import settings
 
@@ -111,3 +113,32 @@ class AdminDetailView(generics.RetrieveAPIView):
         # request.user is automatically populated by Django/DRF
         # after authenticating the request via the access_token cookie.
         return self.request.user
+    
+
+class CustomTokenRefreshView(TokenRefreshView):
+    """
+    This is the CORRECT version. It reads the refresh_token from a cookie
+    and sets the new access_token in a cookie.
+    """
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get('refresh_token')
+        
+        if refresh_token:
+            request.data['refresh'] = refresh_token
+            
+        response = super().post(request, *args, **kwargs)
+        
+        if response.status_code == 200:
+            access_token = response.data.get('access')
+            decoded_token = AccessToken(access_token)
+            response.data['access_token_exp'] = decoded_token['exp']
+
+            access_token_lifetime = settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']
+            response.set_cookie(
+                key='access_token',
+                value=access_token,
+                httponly=True, samesite='Lax', secure=False, path='/',
+                max_age=access_token_lifetime.total_seconds()
+            )
+        
+        return response
