@@ -1,30 +1,38 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useAuthStore } from '@/store/authStore';
-import axiosInstance from '@/lib/axios';
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation"; // Import the usePathname hook
+import { useAuthStore } from "@/store/authStore";
+import axiosInstance from "@/lib/axios";
 
 const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { setUser, user } = useAuthStore();
   const [loading, setLoading] = useState(true);
+  const pathname = usePathname(); // Get the current URL path
 
   useEffect(() => {
+    // Define your public paths where a session check is not needed
+    const publicPaths = ["/", "/login", "/register"];
+
+    // Check if the current path is a public one or the dynamic verification path
+    if (
+      publicPaths.includes(pathname) ||
+      pathname.startsWith("/verify-email")
+    ) {
+      setLoading(false);
+      return; // Skip the session check entirely
+    }
+
+    // This logic will now ONLY run on protected paths
     const initializeAuth = async () => {
-      // If user is already in state (from client-side navigation), skip.
       if (user) {
         setLoading(false);
         return;
       }
-      
       try {
-        // Attempt to get a new access_token using the refresh_token cookie
-        const response = await axiosInstance.post('/token/refresh/');
-        const newAccessToken = response.data.access;
-        
-        // Use the new token to set the user state
-        setUser(newAccessToken);
+        const response = await axiosInstance.post("/token/refresh/");
+        setUser(response.data.access);
       } catch (error) {
-        // This will fail if the refresh_token is invalid or expired
         setUser(null);
       } finally {
         setLoading(false);
@@ -32,14 +40,14 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     initializeAuth();
-  }, [setUser]); // The empty dependency array ensures this runs only once on load
+  }, [pathname, setUser, user]);
 
-  // Show a loading message while we check the session
+  // For public paths, loading is set to false immediately and children are rendered.
+  // For protected paths, this shows a loading state during the session check.
   if (loading) {
-    return <div>Loading session...</div>;
+    return <div>Loading...</div>;
   }
 
-  // Once loading is false, show the rest of the application
   return <>{children}</>;
 };
 
