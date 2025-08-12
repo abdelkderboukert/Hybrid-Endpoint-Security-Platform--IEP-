@@ -1,34 +1,42 @@
 from rest_framework import serializers
 from .models import Admin
-from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-class AdminSerializer(serializers.ModelSerializer):
+class AdminRegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password2 = serializers.CharField(write_only=True, required=True)
+
     class Meta:
         model = Admin
-        fields = ['admin_id', 'username', 'email', 'layer', 'is_active']
+        fields = ('username', 'email', 'password', 'password2')
 
-class RegisterAdminSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Admin
-        fields = ['username', 'email', 'password']
-        extra_kwargs = {'password': {'write_only': True}}
+    def validate(self, attrs):
+        if attrs['password'] != attrs['password2']:
+            raise serializers.ValidationError({"password": "Password fields didn't match."})
+        return attrs
 
     def create(self, validated_data):
-        user = Admin.objects.create_user(
+        user = Admin.objects.create(
             username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password']
+            email=validated_data['email']
         )
+        user.set_password(validated_data['password'])
+        user.save()
         return user
 
-class LoginAdminSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
-    password = serializers.CharField(write_only=True)
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        # Add custom claims
+        token['username'] = user.username
+        token['email'] = user.email
+        return token
     
-    def validate(self, data):
-        # Authenticate using email since USERNAME_FIELD is 'username' but login is via email
-        user = Admin.objects.get(email=data['email'])
-        if user and user.check_password(data['password']):
-            if user.is_active:
-                return user
-        raise serializers.ValidationError("Incorrect credentials!")
+
+class AdminDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Admin
+        # List the fields you want to send to the frontend
+        fields = ['admin_id', 'username', 'email', 'date_joined', 'last_login']

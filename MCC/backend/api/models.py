@@ -15,6 +15,8 @@ class Admin(AbstractBaseUser):
     email = models.EmailField(unique=True)
     parent_admin_id = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='children')
     layer = models.IntegerField(default=0)
+    licence_key = models.CharField(max_length=255, null=True, blank=True, unique=True)
+    is_key_active = models.BooleanField(default=False)
     server_id = models.ForeignKey('Server', on_delete=models.CASCADE, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)

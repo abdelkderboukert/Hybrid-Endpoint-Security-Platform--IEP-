@@ -1,92 +1,113 @@
-from django.shortcuts import render
-from rest_framework.generics import RetrieveUpdateAPIView, CreateAPIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.request import Request
-from .serializers import AdminSerializer, RegisterAdminSerializer, LoginAdminSerializer
-from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
+# api/views.py
+
+from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework import status
-from rest_framework_simplejwt.views import TokenRefreshView
-from rest_framework_simplejwt.exceptions import InvalidToken
-from django.contrib.auth import get_user_model
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from .serializers import AdminRegisterSerializer, AdminDetailSerializer
+from dj_rest_auth.views import LoginView, LogoutView
+from .serializers import MyTokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .models import Admin
 
-Admin = get_user_model()
+from django.conf import settings
+
+# Using a custom view to integrate our custom serializer
+# class CustomLoginView(TokenObtainPairView):
+#     serializer_class = MyTokenObtainPairSerializer
+
+#     def post(self, request, *args, **kwargs):
+#         response = super().post(request, *args, **kwargs)
+#         if response.status_code == 200:
+#             access_token = response.data.get('access')
+#             refresh_token = response.data.get('refresh')
+            
+#             # Manually set HttpOnly cookies
+#             res = Response(response.data, status=status.HTTP_200_OK)
+#             res.set_cookie(
+#                 key='access_token',
+#                 value=access_token,
+#                 httponly=True,
+#                 samesite='Lax', # or 'Strict'
+#                 # secure=True # Use in production with HTTPS
+#             )
+#             res.set_cookie(
+#                 key='refresh_token',
+#                 value=refresh_token,
+#                 httponly=True,
+#                 samesite='Lax', # or 'Strict'
+#                 # secure=True # Use in production with HTTPS
+#                 path='/',
+#                 domain=None,  # Set to your domain if needed
+#             )
+#             return res
+#         return response
+
+class CustomLoginView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            access_token = response.data.get('access')
+            refresh_token = response.data.get('refresh')
+            
+            res = Response(response.data, status=status.HTTP_200_OK)
+            
+            # Get token lifetimes from settings
+            access_token_lifetime = settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']
+            refresh_token_lifetime = settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME']
+            
+            res.set_cookie(
+                key='access_token',
+                value=access_token,
+                httponly=True,
+                samesite='Lax',
+                secure=False,
+                path='/',
+                max_age=access_token_lifetime.total_seconds() # THE FIX
+            )
+            res.set_cookie(
+                key='refresh_token',
+                value=refresh_token,
+                httponly=True,
+                samesite='Lax',
+                secure=False,
+                path='/',
+                max_age=refresh_token_lifetime.total_seconds() # THE FIX
+            )
+            return res
+        return response
+    
+class AdminRegisterView(generics.CreateAPIView):
+    queryset = Admin.objects.all()
+    permission_classes = (AllowAny,)
+    serializer_class = AdminRegisterSerializer
 
 
-class AdminInfoView(RetrieveUpdateAPIView):
-    permission_classes = (IsAuthenticated,)
-    serializer_class = AdminSerializer
+class CustomLogoutView(LogoutView):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        # Clear the HttpOnly cookies on logout
+        response.delete_cookie('access_token')
+        response.delete_cookie('refresh_token')
+        return response
+
+# Example protected view
+class ProtectedView(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({"message": "You have access to this protected data!"})
+    
+
+class AdminDetailView(generics.RetrieveAPIView):
+    """
+    Returns the details of the currently authenticated admin.
+    """
+    serializer_class = AdminDetailSerializer
+    permission_classes = [IsAuthenticated] # Ensures only logged-in users can access it
 
     def get_object(self):
+        # request.user is automatically populated by Django/DRF
+        # after authenticating the request via the access_token cookie.
         return self.request.user
-
-class AdminRegisterView(CreateAPIView):
-    serializer_class = RegisterAdminSerializer
-    # permission_classes = [IsAuthenticated]
-
-class LoginView(APIView):
-    def post(self, request):
-        serializer = LoginAdminSerializer(data=request.data)
-        
-        if serializer.is_valid():
-            user = serializer.validated_data
-            refresh = RefreshToken.for_user(user)
-            access_token = str(refresh.access_token)
-            
-            response = Response({
-                "user": AdminSerializer(user).data},
-                status=status.HTTP_200_OK)
-            
-            response.set_cookie(key="access_token", 
-                                value=access_token,
-                                httponly=True,
-                                secure=True,
-                                samesite="None")
-            
-            response.set_cookie(key="refresh_token",
-                                value=str(refresh),
-                                httponly=True,
-                                secure=True,
-                                samesite="None")
-            return response
-        return Response( serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-class LogoutView(APIView):
-    
-    def post(self, request):
-        refresh_token = request.COOKIES.get("refresh_token")
-        
-        if refresh_token:
-            try:
-                refresh = RefreshToken(refresh_token)
-                refresh.blacklist()
-            except Exception as e:
-                return Response({"error":"Error invalidating token:" + str(e) }, status=status.HTTP_400_BAD_REQUEST)
-        
-        response = Response({"message": "Successfully logged out!"}, status=status.HTTP_200_OK)
-        response.delete_cookie("access_token")
-        response.delete_cookie("refresh_token")
-        
-        return response     
-
-class CookieTokenRefreshView(TokenRefreshView):
-    def post(self, request):
-        refresh_token = request.COOKIES.get("refresh_token")
-        
-        if not refresh_token:
-            return Response({"error":"Refresh token not provided"}, status= status.HTTP_401_UNAUTHORIZED)
-    
-        try:
-            refresh = RefreshToken(refresh_token)
-            access_token = str(refresh.access_token)
-            
-            response = Response({"message": "Access token refreshed successfully"}, status=status.HTTP_200_OK)
-            response.set_cookie(key="access_token", 
-                                value=access_token,
-                                httponly=True,
-                                secure=True,
-                                samesite="None")
-            return response
-        except InvalidToken:
-            return Response({"error":"Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)

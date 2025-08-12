@@ -1,16 +1,12 @@
 from django.urls import path
-from .views import (
-    AdminInfoView, 
-    AdminRegisterView, 
-    LoginView, 
-    LogoutView, 
-    CookieTokenRefreshView
-)
+from api.views import AdminRegisterView, CustomLoginView, CustomLogoutView, ProtectedView, AdminDetailView
+from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
-    path('register/', AdminRegisterView.as_view(), name='register-admin'),
-    path('login/', LoginView.as_view(), name='login'),
-    path('logout/', LogoutView.as_view(), name='logout'),
-    path('user-info/', AdminInfoView.as_view(), name='admin-info'),
-    path('token/refresh/', CookieTokenRefreshView.as_view(), name='token-refresh'),
+    path('register/', AdminRegisterView.as_view(), name='auth_register'),
+    path('login/', CustomLoginView.as_view(), name='auth_login'),
+    path('logout/', CustomLogoutView.as_view(), name='auth_logout'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('admins/me/', AdminDetailView.as_view(), name='admin_me'),
+    path('protected/', ProtectedView.as_view(), name='protected'),
 ]
