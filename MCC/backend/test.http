@@ -18,7 +18,7 @@
 @regularUsername = testuser_01
 @regularUserEmail = testuser_01@test.com
 
-@serverId =
+@serverId =1
 @deviceId =
 
 
