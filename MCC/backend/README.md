@@ -45,7 +45,7 @@ The system is designed for scenarios where a top-level administrator (Layer 0) c
 3.  **Install dependencies:**
 
     ```bash
-    pip install -r requirements.txt
+    pip install -r requirements.txt   .
     ```
 
 4.  **Run database migrations:**
