@@ -12,21 +12,21 @@ dependencies:
 
   # Local Database
   isar: ^3.1.0+1
-  isar_flutter_libs: ^3.1.0+1 # For Isar DB
-  path_provider: ^2.1.2 # To find the correct path for the database
+  isar_flutter_libs: ^3.1.0+1
+  path_provider: ^2.1.2
 
   # Networking
-  dio: ^5.4.1 # Powerful HTTP client for talking to parent/cloud
-  connectivity_plus: ^5.0.2 # To check network state (internet vs none)
+  dio: ^5.4.1
+  connectivity_plus: ^5.0.2
 
   # Local Server
-  shelf: ^1.4.1 # For creating the local HTTP server
-  shelf_router: ^1.1.4 # For routing requests within the shelf server
+  shelf: ^1.4.1
+  shelf_router: ^1.1.4
 
   # Configuration & Utils
-  shared_preferences: ^2.2.2 # To store server configuration (layer, parent IP)
-  uuid: ^4.3.3 # For generating temporary local IDs
-  json_annotation: ^4.8.1 # For JSON serialization
+  shared_preferences: ^2.2.2
+  uuid: ^4.3.3
+  json_annotation: ^4.8.1
   crypto: ^3.0.3
   async: ^2.11.0
 
@@ -34,9 +34,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  flutter_lints: ^3.0.1
+  flutter_lints: ^3.0.0
 
   # Code Generators
   build_runner: ^2.4.8
   isar_generator: ^3.1.0+1
   json_serializable: ^6.7.1
+  async: ^2.11.0
