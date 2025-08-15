@@ -1,0 +1,40 @@
+/my_project_repo
+├── /backend                 # The Django REST API backend
+│   ├── /api                 # Your main Django app
+│   │   ├── /migrations      # Database schema changes
+│   │   ├── /managers.py     # Custom user manager for the Admin model
+│   │   ├── /permissions.py  # Custom permission classes
+│   │   ├── /__init__.py
+│   │   ├── admin.py
+│   │   ├── models.py        # All database models (User, Admin, Device, etc.)
+│   │   ├── serializers.py   # Data serializers for API
+│   │   ├── views.py         # All API views and sync logic
+│   │   └── urls.py          # App-specific URL patterns
+│   ├── /config              # Main Django project configuration
+│   │   ├── /settings.py     # All project settings (apps, DB, auth, CORS)
+│   │   ├── asgi.py
+│   │   ├── wsgi.py
+|   |   ├── gunicorn_config.py
+│   │   └── urls.py          # Root URL patterns
+│   ├── manage.py            # Django management script
+│   └── /venv                # Python virtual environment
+├── /frontend                # The Flutter application
+│   ├── /lib                 # Dart code for the application
+│   │   ├── /models          # Dart classes for local data
+│   │   │   ├── user.dart
+│   │   │   ├── device.dart
+│   │   │   └── sync_item.dart
+│   │   ├── /services        # The core logic for API calls and synchronization
+│   │   │   ├── api_service.dart   # Handles all API requests (login, etc.)
+│   │   │   └── sync_service.dart  # Manages offline data and sync logic
+│   │   ├── /ui              # User interface components
+│   │   │   ├── /screens     # Main screens of the app
+│   │   │   │   ├── login_screen.dart
+│   │   │   │   └── dashboard_screen.dart
+│   │   │   └── /widgets     # Reusable UI elements
+│   │   └── main.dart
+│   ├── /assets              # Images, fonts, etc.
+│   ├── pubspec.yaml         # Project dependencies
+│   ├── pubspec.lock
+│   └── test                 # For unit tests
+└── .gitignore               # Excludes files and folders from version control

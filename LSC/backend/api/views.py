@@ -1,0 +1,321 @@
+from django.conf import settings
+from rest_framework import generics, status, permissions, viewsets
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import AccessToken
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from dj_rest_auth.views import LogoutView
+from django.db import transaction
+from django.utils import timezone
+from datetime import timedelta
+
+from .permissions import IsLicenseActive
+from .models import Admin, User, Device, Server, LicenseKey, Policy, Threat, UserPhoto, DataIntegrityLog, SyncLog
+from .serializers import (
+    AdminRegisterSerializer, MyTokenObtainPairSerializer, AdminProfileSerializer,
+    SubAdminCreateSerializer, SubUserCreateSerializer, LicenseKeyActivateSerializer,
+    UserDetailSerializer, ServerSerializer, DeviceSerializer, SyncItemSerializer, MODEL_MAP
+)
+
+# Helper function for hierarchy traversal
+def get_descendant_admin_ids(root_admin):
+    descendant_ids = {root_admin.admin_id}
+    admins_to_process = [root_admin]
+    while admins_to_process:
+        current_admin = admins_to_process.pop(0)
+        children = Admin.objects.filter(parent_admin_id=current_admin)
+        for child in children:
+            descendant_ids.add(child.admin_id)
+            admins_to_process.append(child)
+    return descendant_ids
+
+# --- The Master Sync Endpoint ---
+class MasterSyncAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        # 1. Log the request first
+        SyncLog.objects.create(admin=request.user, request_data=request.data)
+        
+        # 2. Extract data from the request
+        sync_items_up = request.data.get('sync_items', [])
+        last_sync_timestamp = request.data.get('last_sync_timestamp')
+        source_device_id = request.data.get('source_device_id')
+        
+        # 3. Process the Sync Up (client -> cloud)
+        processed_responses_up = self.process_sync_up(sync_items_up, request.user, source_device_id)
+        
+        # 4. Process the Sync Down (cloud -> client)
+        sync_down_items = self.process_sync_down(last_sync_timestamp, request.user)
+        
+        return Response({
+            "sync_up_responses": processed_responses_up,
+            "sync_down_items": sync_down_items,
+            "current_timestamp": timezone.now().isoformat(),
+            "message": "Synchronization completed successfully."
+        }, status=status.HTTP_200_OK)
+
+    def process_sync_up(self, sync_items, user, source_device_id):
+        processed_responses = []
+        with transaction.atomic():
+            for item in sync_items:
+                serializer = SyncItemSerializer(data=item)
+                if not serializer.is_valid():
+                    processed_responses.append({
+                        'temp_id': item.get('temp_id', None),
+                        'status': 'error',
+                        'errors': serializer.errors,
+                    })
+                    continue
+
+                validated_data = serializer.validated_data
+                model_name = validated_data['model_name']
+                data = validated_data['data']
+                action = validated_data['action']
+                temp_id = validated_data.get('temp_id')
+
+                Model = MODEL_MAP[model_name]
+                
+                try:
+                    if action == 'create':
+                        new_instance = Model.objects.create(**data)
+                        
+                        new_instance.last_modified_by = user.admin_id
+                        new_instance.source_device_id = source_device_id
+                        new_instance.version = 1
+                        new_instance.save()
+                        
+                        processed_responses.append({
+                            'temp_id': str(temp_id),
+                            'status': 'created',
+                            'permanent_id': str(new_instance.pk),
+                            'new_data': Model.objects.filter(pk=new_instance.pk).values().first(),
+                        })
+                        
+                    elif action == 'update':
+                        instance = Model.objects.get(pk=data['id'])
+                        
+                        for field, value in data.items():
+                            if field in ['id', 'last_modified', 'version']:
+                                continue
+                            setattr(instance, field, value)
+                        
+                        instance.last_modified_by = user.admin_id
+                        instance.source_device_id = source_device_id
+                        instance.version += 1
+                        instance.save()
+                        
+                        processed_responses.append({
+                            'id': str(instance.pk),
+                            'status': 'updated',
+                            'new_data': Model.objects.filter(pk=instance.pk).values().first(),
+                        })
+                    
+                    elif action == 'delete':
+                        instance = Model.objects.get(pk=data['id'])
+                        instance.delete()
+                        processed_responses.append({
+                            'id': str(data['id']),
+                            'status': 'deleted',
+                            'message': f"{model_name} with ID {data['id']} deleted successfully."
+                        })
+                
+                except Model.DoesNotExist:
+                    processed_responses.append({
+                        'id': data.get('id', None),
+                        'status': 'not_found',
+                        'message': f"Object {data.get('id', 'N/A')} not found in {model_name}.",
+                    })
+                except Exception as e:
+                    processed_responses.append({
+                        'id': data.get('id', None),
+                        'status': 'error',
+                        'message': str(e),
+                    })
+        return processed_responses
+
+    def process_sync_down(self, last_sync_timestamp, user):
+        sync_down_list = []
+        
+        if not last_sync_timestamp:
+            for Model in MODEL_MAP.values():
+                if hasattr(Model, 'license'):
+                    queryset = Model.objects.filter(license=user.license)
+                    for instance in queryset:
+                        sync_down_list.append({
+                            'model_name': instance.__class__.__name__,
+                            'action': 'create',
+                            'data': Model.objects.filter(pk=instance.pk).values().first(),
+                        })
+            return sync_down_list
+        
+        last_sync_dt = timezone.datetime.fromisoformat(last_sync_timestamp)
+
+        for Model in MODEL_MAP.values():
+            if not hasattr(Model, 'last_modified'):
+                continue
+                
+            queryset = Model.objects.filter(last_modified__gt=last_sync_dt)
+            if hasattr(Model, 'license'):
+                queryset = queryset.filter(license=user.license)
+            
+            for instance in queryset:
+                item_data = {}
+                for field in instance._meta.fields:
+                    item_data[field.name] = getattr(instance, field.name)
+                
+                sync_down_list.append({
+                    'model_name': instance.__class__.__name__,
+                    'action': 'update', 
+                    'data': item_data,
+                })
+        
+        return sync_down_list
+
+# Other API Views (kept for reference)
+class AdminRegisterView(generics.CreateAPIView):
+    queryset = Admin.objects.all()
+    permission_classes = [permissions.AllowAny]
+    serializer_class = AdminRegisterSerializer
+
+class CustomLoginView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
+
+class CustomLogoutView(LogoutView):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        response.delete_cookie('access_token', path='/')
+        response.delete_cookie('refresh_token', path='/')
+        return response
+
+class CustomTokenRefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get('refresh_token')
+        if refresh_token:
+            request.data['refresh'] = refresh_token
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            access_token = response.data.get('access')
+            decoded_token = AccessToken(access_token)
+            response.data['access_token_exp'] = decoded_token['exp']
+            access_token_lifetime = settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']
+            response.set_cookie(
+                key='access_token', value=access_token, httponly=True, samesite='Lax', 
+                secure=False, path='/', max_age=access_token_lifetime.total_seconds()
+            )
+        return response
+
+class AdminProfileView(generics.RetrieveUpdateAPIView):
+    serializer_class = AdminProfileSerializer
+    permission_classes = [IsAuthenticated, IsLicenseActive]
+    def get_object(self):
+        return self.request.user
+
+class LicenseKeyActivateView(generics.GenericAPIView):
+    serializer_class = LicenseKeyActivateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        admin = request.user
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        key_from_user = serializer.validated_data['key']
+        
+        if admin.layer != 0:
+            return Response({"error": "Only Layer 0 admins can activate a license key."}, status=status.HTTP_403_FORBIDDEN)
+        if admin.license is not None:
+            return Response({"error": "Your account already has an active license."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            license_obj = LicenseKey.objects.get(key=key_from_user)
+        except LicenseKey.DoesNotExist:
+            return Response({"error": "Invalid license key."}, status=status.HTTP_404_NOT_FOUND)
+        
+        if license_obj.is_active or license_obj.assigned_admin is not None:
+            return Response({"error": "This license key has already been used."}, status=status.HTTP_400_BAD_REQUEST)
+
+        license_obj.is_active = True
+        license_obj.assigned_admin = admin
+        license_obj.save()
+        admin.license = license_obj
+        admin.save()
+        return Response({"message": "License activated successfully."}, status=status.HTTP_200_OK)
+
+class SubAdminCreateView(generics.CreateAPIView):
+    serializer_class = SubAdminCreateSerializer
+    permission_classes = [IsAuthenticated, IsLicenseActive]
+
+    def perform_create(self, serializer):
+        creating_admin = self.request.user
+        serializer.save(parent_admin_id=creating_admin, license=creating_admin.license)
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+class SubUserCreateView(generics.CreateAPIView):
+    serializer_class = SubUserCreateSerializer
+    permission_classes = [IsAuthenticated, IsLicenseActive]
+
+    def perform_create(self, serializer):
+        creating_admin = self.request.user
+        serializer.save(parent_admin_id=creating_admin, license=creating_admin.license)
+
+class AdminViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = AdminProfileSerializer
+    permission_classes = [IsAuthenticated, IsLicenseActive]
+    queryset = Admin.objects.all()
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user.license:
+            return self.queryset.model.objects.none()
+        
+        queryset = self.queryset.filter(license=user.license)
+        network_admin_ids = get_descendant_admin_ids(user)
+        return queryset.filter(admin_id__in=network_admin_ids, layer__gt=user.layer)
+
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = UserDetailSerializer
+    permission_classes = [IsAuthenticated, IsLicenseActive]
+    queryset = User.objects.all()
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user.license:
+            return self.queryset.model.objects.none()
+        
+        queryset = self.queryset.filter(license=user.license)
+        network_admin_ids = get_descendant_admin_ids(user)
+        return queryset.filter(parent_admin_id__in=network_admin_ids)
+
+class ServerViewSet(viewsets.ModelViewSet):
+    serializer_class = ServerSerializer
+    permission_classes = [IsAuthenticated, IsLicenseActive]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user.license:
+            return Server.objects.none()
+        admins_in_license = Admin.objects.filter(license=user.license)
+        server_ids = admins_in_license.values_list('server_id', flat=True).distinct()
+        return Server.objects.filter(server_id__in=server_ids)
+
+class DeviceViewSet(viewsets.ModelViewSet):
+    serializer_class = DeviceSerializer
+    permission_classes = [IsAuthenticated, IsLicenseActive]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user.license:
+            return Device.objects.none()
+        admins_in_license = Admin.objects.filter(license=user.license)
+        server_ids = admins_in_license.values_list('server_id', flat=True).distinct()
+        network_servers = Server.objects.filter(server_id__in=server_ids)
+        return Device.objects.filter(server__in=network_servers)
+    
+class ProtectedView(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({"message": "You have access to this protected data!"})
