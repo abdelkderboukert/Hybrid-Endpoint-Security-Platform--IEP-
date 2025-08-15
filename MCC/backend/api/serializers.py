@@ -1,8 +1,40 @@
 from rest_framework import serializers
-from .models import Admin,User,Server, Device
+from .models import Admin, User, Device, Server, Policy, Threat, UserPhoto, DataIntegrityLog, LicenseKey, SyncLog
 from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+# Map model names to classes for dynamic serialization
+MODEL_MAP = {
+    'Admin': Admin,
+    'User': User,
+    'Device': Device,
+    'Server': Server,
+    'Policy': Policy,
+    'Threat': Threat,
+    'UserPhoto': UserPhoto,
+    'DataIntegrityLog': DataIntegrityLog,
+}
+
+class SyncItemSerializer(serializers.Serializer):
+    """ A unified serializer for a single synchronization item. """
+    model_name = serializers.CharField()
+    data = serializers.JSONField()
+    action = serializers.CharField() # 'create', 'update', 'delete'
+    temp_id = serializers.UUIDField(required=False, allow_null=True)
+    client_last_modified = serializers.DateTimeField(required=False, allow_null=True)
+
+    def validate_model_name(self, value):
+        if value not in MODEL_MAP:
+            raise serializers.ValidationError("Invalid model name.")
+        return value
+
+class SyncLogSerializer(serializers.ModelSerializer):
+    """ Serializer for the SyncLog model. """
+    class Meta:
+        model = SyncLog
+        fields = '__all__'
+
+# Standard API serializers
 class AdminRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=True)
@@ -17,10 +49,8 @@ class AdminRegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        user = Admin.objects.create(
-            username=validated_data['username'],
-            email=validated_data['email']
-        )
+        validated_data.pop('password2')
+        user = Admin.objects.create_user(**validated_data)
         user.set_password(validated_data['password'])
         user.save()
         return user
@@ -29,23 +59,16 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        # Add custom claims
         token['username'] = user.username
         token['email'] = user.email
         return token
     
-
 class AdminDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Admin
-        # List the fields you want to send to the frontend
         fields = ['admin_id', 'username', 'email', 'date_joined', 'last_login']
 
-
 class SubAdminCreateSerializer(serializers.ModelSerializer):
-    """
-    Serializer for creating a new Admin (sub-admin) by a parent admin.
-    """
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=True, label="Confirm Password")
 
@@ -54,20 +77,15 @@ class SubAdminCreateSerializer(serializers.ModelSerializer):
         fields = ['username', 'email', 'layer', 'password', 'password2']
 
     def validate(self, attrs):
-        # Check if passwords match
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
-
-        # --- THIS IS THE UPDATED PERMISSION CHECK ---
+        
         creating_admin = self.context['request'].user
         requested_layer = attrs.get('layer')
 
-        # New Rule: New admin's layer must be exactly one level below the creator's.
         expected_layer = creating_admin.layer + 1
         if requested_layer != expected_layer:
-            raise serializers.ValidationError({
-                "layer": f"As a layer {creating_admin.layer} admin, you can only create layer {expected_layer} admins."
-            })
+            raise serializers.ValidationError({"layer": f"As a layer {creating_admin.layer} admin, you can only create layer {expected_layer} admins."})
 
         return attrs
 
@@ -76,38 +94,18 @@ class SubAdminCreateSerializer(serializers.ModelSerializer):
         new_admin = Admin.objects.create_user(**validated_data)
         return new_admin
 
-
 class SubUserCreateSerializer(serializers.ModelSerializer):
-    """
-    Serializer for creating a new User by a logged-in admin.
-    """
     class Meta:
         model = User
-        # These are the fields the frontend will send when creating a user.
-        fields = [
-            'user_id',
-            'username', 
-            'email',
-            'parent_admin_id',
-            'associated_device_ids'
-        ]
-        # These fields are set automatically by the backend and are not required as input.
-        # They will be included in the response after a successful creation.
+        fields = ['user_id', 'username', 'email', 'parent_admin_id', 'associated_device_ids']
         read_only_fields = ['user_id', 'parent_admin_id']
 
-
 class ServerSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the Server model.
-    """
     class Meta:
         model = Server
-        fields = '__all__' # This includes all fields from your Server model
+        fields = '__all__'
 
 class DeviceSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the Device model.
-    """
     class Meta:
         model = Device
         fields = '__all__'
@@ -118,30 +116,19 @@ class UserDetailSerializer(serializers.ModelSerializer):
         fields = ['user_id', 'username', 'email', 'parent_admin_id']
 
 class AdminProfileSerializer(serializers.ModelSerializer):
-    # Make the password write-only and not required for updates
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = Admin
-        fields = [
-            'admin_id', 
-            'username', 
-            'email', 
-            'layer', 
-            'date_joined', 
-            'last_login',
-            'password', # Include password for updates
-        ]
+        fields = ['admin_id', 'username', 'email', 'layer', 'date_joined', 'last_login', 'password']
         read_only_fields = ['admin_id', 'date_joined', 'last_login', 'layer']
 
     def update(self, instance, validated_data):
-        # Handle password hashing if a new password is provided
         password = validated_data.pop('password', None)
         if password:
             instance.set_password(password)
         
         return super().update(instance, validated_data)
-    
 
 class LicenseKeyActivateSerializer(serializers.Serializer):
     key = serializers.CharField(required=True, write_only=True)

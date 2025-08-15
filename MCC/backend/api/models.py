@@ -1,67 +1,64 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 import uuid
-from django.contrib.auth.hashers import make_password, check_password
 from django.utils import timezone
-from .managers import AdminManager # Assuming you have this manager in a separate file
 
+# Assuming you have this manager in a separate file
+from .managers import AdminManager 
 
+# --- New Abstract Base Classes for Synchronization ---
+class SyncableModel(models.Model):
+    last_modified = models.DateTimeField(auto_now=True)
+    last_modified_by = models.UUIDField(null=True, blank=True, help_text="ID of the user or admin who made the change.")
+    source_device_id = models.UUIDField(null=True, blank=True, help_text="ID of the device the change originated from.")
+    version = models.IntegerField(default=1)
 
-class LicenseKey(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    key = models.CharField(max_length=255, unique=True, help_text="The actual license key string.")
-    is_active = models.BooleanField(default=False, help_text="True if this key has been assigned to an admin.")
-    # A One-to-One link ensures one key can only be assigned to one Layer 0 admin
-    assigned_admin = models.OneToOneField('Admin', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_license')
-    date_created = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        abstract = True
 
-    def __str__(self):
-        return self.key
-    
+class HierarchicalModel(models.Model):
+    # For models that exist in a hierarchy
+    parent_id = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        abstract = True
+# --- End of Abstract Base Classes ---
 
 # ---
 # 1. Admins Model
 # ---
 
-class Admin(AbstractBaseUser):
+class Admin(AbstractBaseUser, SyncableModel, HierarchicalModel):
     admin_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=255, unique=True)
     email = models.EmailField(unique=True)
     parent_admin_id = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='children')
     layer = models.IntegerField(default=0)
-    # licence_key = models.CharField(max_length=255, null=True, blank=True, unique=True)
-    # is_key_active = models.BooleanField(default=False)
-    license = models.ForeignKey(LicenseKey, on_delete=models.CASCADE, null=True, blank=True, related_name='admins')
+    license = models.ForeignKey('LicenseKey', on_delete=models.CASCADE, null=True, blank=True, related_name='admins')
     server_id = models.ForeignKey('Server', on_delete=models.CASCADE, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     last_login = models.DateTimeField(null=True, blank=True)
     date_joined = models.DateTimeField(auto_now_add=True)
+    last_modified = models.DateTimeField(auto_now=True)
+    last_modified_by = models.UUIDField(null=True, blank=True)
+    source_device_id = models.UUIDField(null=True, blank=True)
+    version = models.IntegerField(default=1)
 
     objects = AdminManager()
 
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = ['email']
 
-    class Meta:
-        verbose_name = 'Admin'
-        verbose_name_plural = 'Admins'
-
     def __str__(self):
         return self.username
-
-    def has_perm(self, perm, obj=None):
-        return self.is_superuser
-
-    def has_module_perms(self, app_label):
-        return self.is_superuser
 
 # ---
 # 2. Servers Model
 # ---
 
-class Server(models.Model):
+class Server(models.Model): 
     SERVER_TYPES = [
         ('Cloud', 'Cloud'),
         ('Local', 'Local'),
@@ -73,22 +70,26 @@ class Server(models.Model):
     is_connected = models.BooleanField(default=False)
     last_heartbeat = models.DateTimeField(null=True, blank=True)
     licence_key = models.CharField(max_length=255, unique=True, null=True, blank=True)
-
+    last_modified = models.DateTimeField(auto_now=True)
+    last_modified_by = models.UUIDField(null=True, blank=True)
+    source_device_id = models.UUIDField(null=True, blank=True)
+    version = models.IntegerField(default=1)
+    
     def __str__(self):
-        return self.server_id
+        return str(self.server_id)
 
 # ---
 # 3. Devices Model
 # ---
 
-class Device(models.Model):
+class Device(SyncableModel):
     device_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     device_name = models.CharField(max_length=255)
     os = models.CharField(max_length=255)
-    server_id = models.ForeignKey('Server', on_delete=models.CASCADE)
+    server = models.ForeignKey('Server', on_delete=models.CASCADE)
     is_isolated = models.BooleanField(default=False)
     last_seen = models.DateTimeField(auto_now=True)
-    current_logged_in_user_id = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True)
+    current_logged_in_user_id = models.UUIDField(null=True, blank=True)
 
     def __str__(self):
         return self.device_name
@@ -97,13 +98,13 @@ class Device(models.Model):
 # 4. Users Model
 # ---
 
-class User(models.Model):
+class User(SyncableModel, HierarchicalModel):
     user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=255, unique=True)
     parent_admin_id = models.ForeignKey('Admin', on_delete=models.SET_NULL, null=True, blank=True)
     email = models.EmailField(unique=True)
     associated_device_ids = models.JSONField(default=list, blank=True)
-    license = models.ForeignKey(LicenseKey, on_delete=models.CASCADE, null=True, blank=True, related_name='users')
+    license = models.ForeignKey('LicenseKey', on_delete=models.CASCADE, null=True, blank=True, related_name='users')
 
     def __str__(self):
         return self.username
@@ -112,7 +113,7 @@ class User(models.Model):
 # 5. Policies Model
 # ---
 
-class Policy(models.Model):
+class Policy(SyncableModel):
     policy_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     policy_name = models.CharField(max_length=255)
     policy_json = models.JSONField()
@@ -126,7 +127,7 @@ class Policy(models.Model):
 # 6. Threats Model
 # ---
 
-class Threat(models.Model):
+class Threat(SyncableModel):
     STATUS_CHOICES = [
         ('Detected', 'Detected'),
         ('Quarantined', 'Quarantined'),
@@ -145,7 +146,7 @@ class Threat(models.Model):
 # 7. User Photos Model
 # ---
 
-class UserPhoto(models.Model):
+class UserPhoto(SyncableModel):
     photo_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.ForeignKey('User', on_delete=models.CASCADE)
     device_id = models.ForeignKey('Device', on_delete=models.CASCADE)
@@ -160,7 +161,7 @@ class UserPhoto(models.Model):
 # 8. Data Integrity Log Model
 # ---
 
-class DataIntegrityLog(models.Model):
+class DataIntegrityLog(SyncableModel):
     log_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     device_id = models.ForeignKey('Device', on_delete=models.CASCADE)
     file_path = models.TextField()
@@ -170,3 +171,27 @@ class DataIntegrityLog(models.Model):
 
     def __str__(self):
         return str(self.log_id)
+        
+# ---
+# 9. LicenseKey Model
+# ---
+
+class LicenseKey(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    key = models.CharField(max_length=255, unique=True)
+    is_active = models.BooleanField(default=False)
+    assigned_admin = models.OneToOneField('Admin', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_license')
+    date_created = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.key
+
+# --- New Sync Log Model ---
+class SyncLog(models.Model):
+    log_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    admin = models.ForeignKey('Admin', on_delete=models.SET_NULL, null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    request_data = models.JSONField(help_text="The raw JSON of the sync request from the client.")
+    
+    def __str__(self):
+        return f"Sync log from {self.admin.username} at {self.timestamp.isoformat()}"
