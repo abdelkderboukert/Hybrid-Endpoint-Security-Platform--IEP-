@@ -4,7 +4,7 @@ import uuid
 from django.utils import timezone
 
 # Assuming you have this manager in a separate file
-# from .managers import AdminManager 
+from .managers import AdminManager 
 
 # --- Abstract Base Classes for Synchronization ---
 class SyncableModel(models.Model):
@@ -42,7 +42,7 @@ class Admin(AbstractBaseUser, SyncableModel, HierarchicalModel):
     date_joined = models.DateTimeField(auto_now_add=True)
     
     # You will need to create a custom AdminManager
-    # objects = AdminManager() 
+    objects = AdminManager() 
 
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = ['email']
