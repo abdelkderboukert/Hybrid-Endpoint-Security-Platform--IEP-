@@ -1,0 +1,142 @@
+# ===============================================
+# Environment Variables
+# ===============================================
+
+@host = localhost
+@port = 8000
+@local_server_port = 8001
+@cloud_manager_token = ""
+@father_token = ""
+@father_admin_id = ""
+@new_child_user_id = ""
+
+### 
+# 1. Login to the Cloud Manager (Layer 0) to get a token
+# You must have a 'grandfather_admin' created in your cloud's DB.
+###
+POST http://{{host}}:{{port}}/api/login/
+Content-Type: application/json
+
+{
+    "username": "admin-1",
+    "password": "Bluck@07"
+}
+
+> {%
+  client.global.set("cloud_manager_token", response.body.access);
+%}
+
+###
+# 2. Login to the Admin Layer 1 to get a token
+# You must have a 'father_admin' created in your Layer 1's DB.
+# This request also gets the father's ID for later use in the sync payload.
+###
+POST http://{{host}}:{{local_server_port}}/api/login/
+Content-Type: application/json
+
+{
+  "username": "admin-2",
+  "password": "Bluck@07"
+}
+
+> {%
+  client.global.set("father_token", response.body.access);
+  // Assuming the user ID is returned in the login response
+  client.global.set("father_admin_id", response.body.user.admin_id);
+%}
+
+
+# ===============================================
+# Test 1: Sync Up from a Child (simulated) to Layer 1 (Father)
+# ===============================================
+# The Layer 1 backend (port 8001) is the endpoint.
+# The payload simulates a Layer 2 child creating a new user.
+
+###
+POST http://{{host}}:{{local_server_port}}/api/sync/
+Content-Type: application/json
+Authorization: Bearer {{father_token}}
+
+{
+  "sync_items": [
+    {
+      "model_name": "User",
+      "action": "create",
+      "temp_id": "1a2b3c4d-1234-5678-90ab-1a2b3c4d5e6f",
+      "data": {
+        "username": "child_user_1",
+        "email": "child1@example.com",
+        "parent_admin_id": "{{father_admin_id}}"
+      }
+    }
+  ],
+  "last_sync_timestamp": "2025-08-15T10:00:00Z",
+  "source_device_id": "device-123-abc"
+}
+
+> {%
+  // Capture the new permanent ID for the created user
+  const responseBody = response.body;
+  if (responseBody.sync_up_responses && responseBody.sync_up_responses.length > 0) {
+    const userCreationResponse = responseBody.sync_up_responses[0];
+    if (userCreationResponse.status === "created") {
+      client.global.set("new_child_user_id", userCreationResponse.permanent_id);
+    }
+  }
+%}
+
+
+# ===============================================
+# Test 2: Sync Up from Layer 1 to Cloud (Father to Grandfather)
+# ===============================================
+# The Layer 1 backend has the new user. We now simulate it sending that update to the Cloud.
+
+###
+POST http://{{host}}:{{port}}/api/sync/
+Content-Type: application/json
+Authorization: Bearer {{cloud_manager_token}}
+
+{
+  "sync_items": [
+    {
+      "model_name": "User",
+      "action": "create",
+      "data": {
+        "user_id": "{{new_child_user_id}}",
+        "username": "child_user_1",
+        "email": "child1@example.com",
+        "parent_admin_id": "{{father_admin_id}}"
+      }
+    }
+  ],
+  "last_sync_timestamp": "2025-08-15T11:00:00Z",
+  "source_device_id": "device-123-abc"
+}
+
+
+# ===============================================
+# Test 3: Sync Down from Cloud to Layer 1 (Grandfather to Father)
+# ===============================================
+# The Cloud has a change that the Layer 1 admin doesn't have.
+# This test simulates the Layer 1 admin polling the cloud for updates.
+
+# First, create a change directly in the Cloud's DB or via a separate API endpoint.
+# We'll assume a new user with ID "new-cloud-user-id" has been created on the cloud.
+
+###
+POST http://{{host}}:{{port}}/api/sync/
+Content-Type: application/json
+Authorization: Bearer {{cloud_manager_token}}
+
+{
+  "sync_items": [],
+  "last_sync_timestamp": "2025-08-15T11:50:00Z",
+  "source_device_id": "device-456-def"
+}
+
+> {%
+  // You would typically process the sync_down_items here on the client side
+  // For example, update the local database with the new data
+  const responseBody = response.body;
+  console.log("Received sync down items:", responseBody.sync_down_items);
+%}
