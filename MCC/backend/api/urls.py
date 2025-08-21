@@ -1,31 +1,6 @@
-# from django.urls import path,include
-# from api.views import AdminRegisterView, CustomLoginView, CustomLogoutView,CustomTokenRefreshView, ProtectedView, AdminProfileView,ServerViewSet,DeviceViewSet,AdminViewSet, UserViewSet,LicenseKeyActivateView
-# from rest_framework_simplejwt.views import TokenRefreshView
-# from rest_framework.routers import DefaultRouter
-
-# router = DefaultRouter()
-# router.register(r'servers', ServerViewSet, basename='server')
-# router.register(r'devices', DeviceViewSet, basename='device')
-# router.register(r'network/admins', AdminViewSet, basename='network-admin')
-# router.register(r'network/users', UserViewSet, basename='network-user')
-
-# urlpatterns = [
-#     path('', include(router.urls)),
-#     path('register/', AdminRegisterView.as_view(), name='auth_register'),
-#     path('login/', CustomLoginView.as_view(), name='auth_login'),
-#     path('logout/', CustomLogoutView.as_view(), name='auth_logout'),
-#     # path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-#     path('admins/me/', AdminProfileView.as_view(), name='admin_me'),
-#     path('protected/', ProtectedView.as_view(), name='protected'),
-#     path('token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
-#     path('license/activate/', LicenseKeyActivateView.as_view(), name='license_activate'),
-# ]
-
-
-# api/urls.py
-
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenBlacklistView
 
 # Import all the views from your views.py file
 from .views import (
@@ -64,7 +39,8 @@ urlpatterns = [
     # Individual URLs for specific actions
     path('register/', AdminRegisterView.as_view(), name='register'),
     path('login/', CustomLoginView.as_view(), name='login'),
-    path('logout/', CustomLogoutView.as_view(), name='logout'),
+    # path('logout/', CustomLogoutView.as_view(), name='logout'),
+    path('logout/', TokenBlacklistView.as_view(), name='token_blacklist'),
     path('token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
     
     path('profile/', AdminProfileView.as_view(), name='profile'),

@@ -19,7 +19,7 @@ class AuthService {
     }
 
     final response = await http.get(
-      Uri.parse('$_baseUrl/$endpoint'),
+      Uri.parse('$_baseUrl/profile/'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $accessToken',
@@ -77,27 +77,23 @@ class AuthService {
   }
 
   Future<void> logout() async {
-    String? accessToken = await storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw AuthException(); // No token, so throw the exception
+    String? refreshToken = await storage.read(key: 'refresh_token');
+    if (refreshToken == null) {
+      throw AuthException();
     }
     final response = await http.post(
       Uri.parse('$_baseUrl/logout/'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $accessToken',
-      },
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'refresh': refreshToken}),
     );
 
-    if (response.statusCode == 401) {
-      throw AuthException(); // Token expired, throw the exception
-    }
-
     if (response.statusCode == 200) {
+      // Successfully logged out, clear tokens
       await storage.delete(key: 'access_token');
       await storage.delete(key: 'refresh_token');
     } else {
-      throw Exception('Failed to fetch data: ${response.statusCode}');
+      // Handle other status codes like 401 for an expired token
+      throw Exception('Failed to log out: ${response.statusCode}');
     }
   }
 }

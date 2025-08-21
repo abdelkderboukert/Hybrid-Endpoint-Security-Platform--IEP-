@@ -37,12 +37,12 @@ class MyHomePageState extends State<MyHomePage> {
     PaneItem(
       icon: const Icon(FluentIcons.people),
       title: const Text('Users'),
-      body: const Center(child: Text('Information Panel Page')),
+      body: const Center(child: Text('Users Page')),
     ),
     PaneItem(
       icon: const Icon(FluentIcons.devices2),
       title: const Text('Devices'),
-      body: const Center(child: Text('Information Panel Page')),
+      body: const Center(child: Text('Devices Page')),
     ),
     PaneItemExpander(
       icon: const Icon(FluentIcons.task_manager),

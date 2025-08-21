@@ -1,10 +1,14 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:frontend/screens/splash_screen.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
+  final storage = const FlutterSecureStorage();
+  await storage.delete(key: 'access_token');
+  await storage.delete(key: 'refresh_token');
   runApp(const MyApp());
 }
 

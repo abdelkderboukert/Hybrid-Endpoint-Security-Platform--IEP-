@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenBlacklistView
 
 from .views import (
     AdminRegisterView,
@@ -31,7 +32,8 @@ urlpatterns = [
     
     path('register/', AdminRegisterView.as_view(), name='register'),
     path('login/', CustomLoginView.as_view(), name='login'),
-    path('logout/', CustomLogoutView.as_view(), name='logout'),
+    # path('logout/', CustomLogoutView.as_view(), name='logout'),
+    path('logout/', TokenBlacklistView.as_view(), name='token_blacklist'),
     path('token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
     
     path('profile/', AdminProfileView.as_view(), name='profile'),

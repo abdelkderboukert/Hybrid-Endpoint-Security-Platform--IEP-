@@ -29,6 +29,7 @@ export default function LoginPage() {
       // Navigate to a protected page, for example the user's dashboard
       // The user ID should come from the decoded token in your auth store
       const decodedToken: { user_id: string } = jwtDecode(access);
+      console.log(decodedToken.user_id);
       router.push(`/admin/${decodedToken.user_id}/dashboard`);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Login failed");
