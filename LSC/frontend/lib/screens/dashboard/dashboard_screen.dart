@@ -436,11 +436,11 @@ class MyHomePageState extends State<MyHomePage> {
       });
       /*
       change:
-        if (!isActive) {
+        if (isActive) {
           //rest of code
         }
       to:
-        if (isActive) {
+        if (!isActive) {
           //rest of code
         }
 
