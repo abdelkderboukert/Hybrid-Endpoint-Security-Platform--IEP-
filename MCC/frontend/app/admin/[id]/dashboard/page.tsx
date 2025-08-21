@@ -1,8 +1,10 @@
+// components/DashboardPage.tsx
 "use client";
 
 import axiosInstance from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 import { useRouter } from "next/navigation";
+import Cookies from "js-cookie"; // Install js-cookie: npm install js-cookie
 
 export default function DashboardPage() {
   const { user, logout } = useAuthStore();
@@ -10,16 +12,23 @@ export default function DashboardPage() {
 
   const handleLogout = async () => {
     try {
-      await axiosInstance.post("/logout/");
-      // Optionally, you can clear the user state here
-      // This is handled by the auth store's logout function
-      console.log("Logout successful");
-      
+      const refreshToken = Cookies.get("refresh_token"); // Get the refresh token from the cookie
+
+      if (refreshToken) {
+        // Send the refresh token in the request body to the backend's TokenBlacklistView
+        await axiosInstance.post("/logout/", {
+          refresh: refreshToken,
+        });
+        console.log("Logout successful");
+      }
     } catch (error) {
       console.error("Logout failed", error);
     } finally {
-      logout(); // Clear state in store
-      router.push("/login"); // Redirect to login
+      // Always clear local state and cookies regardless of the backend response
+      logout();
+      Cookies.remove("access_token");
+      Cookies.remove("refresh_token");
+      router.push("/login");
     }
   };
 
