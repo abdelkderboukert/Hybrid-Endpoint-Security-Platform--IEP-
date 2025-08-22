@@ -9,10 +9,17 @@ class ApiService {
   final _storage = const FlutterSecureStorage();
   final _baseUrl = 'http://127.0.0.1:8000/api';
 
+  static const bool isDevelopment = true;
+
   Future<bool> checkLicenseStatus() async {
     String? accessToken = await _storage.read(key: 'access_token');
     if (accessToken == null) {
       return false;
+    }
+
+    if (isDevelopment) {
+      // Return true to pass the license check
+      return true;
     }
 
     try {
