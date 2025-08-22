@@ -51,7 +51,7 @@ class Admin(AbstractBaseUser, SyncableModel, HierarchicalModel):
         return self.username
 
 # ---
-# 2. Servers Model
+# 2. Enhanced Servers Model with detailed system information
 # ---
 
 class Server(SyncableModel): 
@@ -60,6 +60,7 @@ class Server(SyncableModel):
         ('Local', 'Local'),
         ('Sub-Local', 'Sub-Local'),
     ]
+    
     server_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     server_type = models.CharField(max_length=20, choices=SERVER_TYPES)
     parent_server = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='sub_servers')
@@ -67,11 +68,60 @@ class Server(SyncableModel):
     last_heartbeat = models.DateTimeField(null=True, blank=True)
     licence_key = models.CharField(max_length=255, unique=True, null=True, blank=True)
     
+    # Enhanced server information
+    server_name = models.CharField(max_length=255, blank=True, help_text="Computer/Server name")
+    hostname = models.CharField(max_length=255, blank=True)
+    domain = models.CharField(max_length=255, blank=True, help_text="Windows domain if applicable")
+    workgroup = models.CharField(max_length=255, blank=True, help_text="Windows workgroup if applicable")
+    
+    # Operating System Information
+    os_name = models.CharField(max_length=255, blank=True, help_text="e.g., Windows 11, Ubuntu 22.04")
+    os_version = models.CharField(max_length=255, blank=True)
+    os_architecture = models.CharField(max_length=50, blank=True, help_text="e.g., x64, x86")
+    os_build = models.CharField(max_length=100, blank=True)
+    
+    # Hardware Information
+    cpu_info = models.TextField(blank=True, help_text="CPU details")
+    total_ram_gb = models.FloatField(null=True, blank=True, help_text="Total RAM in GB")
+    available_storage_gb = models.FloatField(null=True, blank=True, help_text="Available storage in GB")
+    
+    # Network Information
+    ip_address = models.GenericIPAddressField(null=True, blank=True, help_text="Primary IP address")
+    mac_address = models.CharField(max_length=17, blank=True, help_text="Primary MAC address")
+    network_interfaces = models.JSONField(default=list, blank=True, help_text="List of network interfaces")
+    dns_servers = models.JSONField(default=list, blank=True, help_text="List of DNS servers")
+    default_gateway = models.GenericIPAddressField(null=True, blank=True)
+    
+    # Current logged in user info
+    current_user = models.CharField(max_length=255, blank=True, help_text="Current Windows user")
+    user_profile_path = models.CharField(max_length=500, blank=True)
+    is_admin_user = models.BooleanField(default=False, help_text="Is current user admin")
+    
+    # Security and Status
+    antivirus_status = models.CharField(max_length=255, blank=True)
+    firewall_status = models.CharField(max_length=255, blank=True)
+    last_boot_time = models.DateTimeField(null=True, blank=True)
+    uptime_hours = models.FloatField(null=True, blank=True)
+
+    owner_admin = models.ForeignKey('Admin', on_delete=models.SET_NULL, null=True, blank=True, related_name='servers')
+    
+    # Auto-detection metadata
+    auto_detected = models.BooleanField(default=False, help_text="Was this server auto-detected")
+    detection_timestamp = models.DateTimeField(auto_now_add=True)
+    last_info_update = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['hostname']),
+            models.Index(fields=['ip_address']),
+            models.Index(fields=['mac_address']),
+        ]
+    
     def __str__(self):
-        return str(self.server_id)
+        return f"{self.server_name or self.hostname or str(self.server_id)}"
 
 # ---
-# 3. Devices Model
+# 3. Enhanced Devices Model
 # ---
 
 class Device(SyncableModel):
@@ -82,10 +132,24 @@ class Device(SyncableModel):
     is_isolated = models.BooleanField(default=False)
     last_seen = models.DateTimeField(auto_now=True)
     current_logged_in_user_id = models.UUIDField(null=True, blank=True)
+    
+    # Enhanced device information
+    device_type = models.CharField(max_length=100, blank=True, help_text="Desktop, Laptop, Server, etc.")
+    manufacturer = models.CharField(max_length=255, blank=True)
+    model = models.CharField(max_length=255, blank=True)
+    serial_number = models.CharField(max_length=255, blank=True)
+    
+    # Hardware specs
+    processor = models.CharField(max_length=255, blank=True)
+    ram_gb = models.FloatField(null=True, blank=True)
+    storage_gb = models.FloatField(null=True, blank=True)
+    
+    # Network info specific to device
+    ip_addresses = models.JSONField(default=list, blank=True)
+    mac_addresses = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return self.device_name
-
 # ---
 # 4. Users Model
 # ---

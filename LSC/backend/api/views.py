@@ -1,6 +1,7 @@
 from django.conf import settings
 from rest_framework import generics, status, permissions, viewsets
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Q
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import AccessToken
@@ -9,6 +10,7 @@ from dj_rest_auth.views import LogoutView
 from django.db import transaction
 from django.utils import timezone
 from datetime import timedelta
+from .util import SystemDetector 
 
 from .permissions import IsLicenseActive
 from .models import Admin, User, Device, Server, LicenseKey, Policy, Threat, UserPhoto, DataIntegrityLog, SyncLog
@@ -319,3 +321,81 @@ class ProtectedView(generics.GenericAPIView):
 
     def get(self, request):
         return Response({"message": "You have access to this protected data!"})
+    
+
+
+class ServerDetectionAPIView(APIView):
+    # This view requires a logged-in admin to perform the action.
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        """
+        Detects system info, then creates or updates a server record.
+        """
+        admin = request.user # The logged-in admin
+
+        # 1. Automatically get the server information using the SystemDetector utility
+        try:
+            detector = SystemDetector()
+            server_data = detector.get_complete_system_info()
+        except Exception as e:
+            # If detection fails, send an error response
+            return Response(
+                {"error": f"Failed to detect system information: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        hostname = server_data.get('hostname')
+        mac_address = server_data.get('mac_address')
+
+        if not hostname and not mac_address:
+            return Response(
+                {"error": "Hostname or MAC address is required for a server record."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # 2. Check the database for an existing server
+            server_instance = Server.objects.get(Q(hostname=hostname) | Q(mac_address=mac_address))
+
+            # Check if the logged-in admin has permission to update this server
+            if server_instance.owner_admin and server_instance.owner_admin != admin and admin.layer >= server_instance.owner_admin.layer:
+                return Response(
+                    {"error": "You do not have permission to update this server."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # 3. Update the existing server record
+            serializer = ServerSerializer(server_instance, data=server_data, partial=True)
+            if serializer.is_valid():
+                serializer.save(
+                    last_info_update=timezone.now(),
+                    auto_detected=True
+                )
+                return Response({
+                    "message": "Server information updated successfully.",
+                    "server": serializer.data
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Server.DoesNotExist:
+            # 3. If the server does not exist, create a new one
+            server_data['owner_admin'] = admin.admin_id
+            serializer = ServerSerializer(data=server_data)
+            if serializer.is_valid():
+                serializer.save(
+                    owner_admin=admin,
+                    last_info_update=timezone.now(),
+                    auto_detected=True,
+                    server_type='Local' # Assuming this is a local detection
+                )
+                return Response({
+                    "message": "New server registered successfully.",
+                    "server": serializer.data
+                }, status=status.HTTP_201_CREATED)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+

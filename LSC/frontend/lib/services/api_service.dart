@@ -7,6 +7,7 @@ import '../models/models.dart'; // Import your models file
 
 class ApiService {
   final _storage = const FlutterSecureStorage();
+  // IMPORTANT: Use your local IP address for physical device testing
   final _baseUrl = 'http://127.0.0.1:8000/api';
 
   static const bool isDevelopment = true;
@@ -33,23 +34,18 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
-        // Assuming your backend sends a boolean field like 'is_active'
         return data['is_active'] as bool? ?? false;
       } else if (response.statusCode == 403) {
-        // Forbidden, license likely not active
         return false;
       } else {
-        // Other errors, including 401 Unauthorized
         return false;
       }
     } catch (e) {
-      // Network or other exceptions
       print('Error checking license status: $e');
       return false;
     }
   }
 
-  // New method to fetch and return the Admin object
   Future<Admin?> getAdminProfile() async {
     String? accessToken = await _storage.read(key: 'access_token');
     if (accessToken == null) {
@@ -66,13 +62,9 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        // Decode the JSON response
         final Map<String, dynamic> jsonData = jsonDecode(response.body);
-
-        // Use the Admin.fromJson() factory to create an Admin object
         return Admin.fromJson(jsonData);
       } else {
-        // Log a more informative error message
         print(
           'Failed to fetch admin profile with status code: ${response.statusCode}',
         );
@@ -84,7 +76,6 @@ class ApiService {
     }
   }
 
-  // The activateLicense method remains the same and is correct as is.
   Future<bool> activateLicense(String key) async {
     String? accessToken = await _storage.read(key: 'access_token');
     if (accessToken == null) {
@@ -111,6 +102,39 @@ class ApiService {
     } catch (e) {
       print('An error occurred during license activation: $e');
       return false;
+    }
+  }
+
+  // --- New method to register or update the server ---
+  Future<Map<String, dynamic>> registerServer() async {
+    String? accessToken = await _storage.read(key: 'access_token');
+    if (accessToken == null) {
+      throw Exception("Access token not found. Please log in.");
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/server/detect/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      final responseBody = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': responseBody['message'],
+          'server_data': responseBody['server'],
+        };
+      } else {
+        throw Exception(responseBody['error'] ?? 'An unknown error occurred.');
+      }
+    } catch (e) {
+      print('An error occurred during server registration: $e');
+      rethrow;
     }
   }
 }
