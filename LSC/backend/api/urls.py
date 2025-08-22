@@ -9,6 +9,7 @@ from .views import (
     CustomTokenRefreshView,
     AdminProfileView,
     LicenseKeyActivateView,
+    ServerDetectionAPIView,
     SubAdminCreateView,
     SubUserCreateView,
     AdminViewSet,
@@ -41,4 +42,5 @@ urlpatterns = [
 
     path('network/admins/create/', SubAdminCreateView.as_view(), name='create_sub_admin'),
     path('network/users/create/', SubUserCreateView.as_view(), name='create_sub_user'),
+    path('server/detect/', ServerDetectionAPIView.as_view(), name='server-detect'),
 ]
