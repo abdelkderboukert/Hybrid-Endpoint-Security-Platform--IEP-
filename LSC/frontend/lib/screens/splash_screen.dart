@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/dashboard/dashboard_screen.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/screens/auth/login_screen.dart';
 import './auth_wrapper.dart';
@@ -21,7 +22,7 @@ class _SplashScreenState extends State<SplashScreen> {
     if (accessToken != null) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const AuthWrapper()),
+        MaterialPageRoute(builder: (context) => const MyHomePage()),
       );
     } else {
       Navigator.pushReplacement(
@@ -33,10 +34,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

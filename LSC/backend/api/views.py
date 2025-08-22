@@ -208,7 +208,7 @@ class CustomTokenRefreshView(TokenRefreshView):
 
 class AdminProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = AdminProfileSerializer
-    permission_classes = [IsAuthenticated, IsLicenseActive]
+    permission_classes = [IsAuthenticated]#, IsLicenseActive
     def get_object(self):
         return self.request.user
 
@@ -263,7 +263,7 @@ class SubUserCreateView(generics.CreateAPIView):
 
 class AdminViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AdminProfileSerializer
-    permission_classes = [IsAuthenticated, IsLicenseActive]
+    permission_classes = [IsAuthenticated,IsLicenseActive]
     queryset = Admin.objects.all()
 
     def get_queryset(self):
