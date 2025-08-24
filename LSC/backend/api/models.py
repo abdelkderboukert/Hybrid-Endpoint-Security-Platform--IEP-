@@ -150,20 +150,36 @@ class Device(SyncableModel):
 
     def __str__(self):
         return self.device_name
+
 # ---
-# 4. Users Model
+# 10. Group Model
+# ---
+
+class Group(SyncableModel):
+    group_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    group_name = models.CharField(max_length=255, unique=True)
+    license = models.ForeignKey('LicenseKey', on_delete=models.CASCADE, null=True, blank=True, related_name='groups')
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+      return self.group_name
+
+# ---
+# 4. Users Model (Updated)
 # ---
 
 class User(SyncableModel, HierarchicalModel):
-    user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    username = models.CharField(max_length=255, unique=True)
-    parent_admin_id = models.ForeignKey('Admin', on_delete=models.SET_NULL, null=True, blank=True)
-    email = models.EmailField(unique=True)
-    associated_device_ids = models.JSONField(default=list, blank=True)
-    license = models.ForeignKey('LicenseKey', on_delete=models.CASCADE, null=True, blank=True, related_name='users')
+   user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+   username = models.CharField(max_length=255, unique=True)
+   parent_admin_id = models.ForeignKey('Admin', on_delete=models.SET_NULL, null=True, blank=True)
+   email = models.EmailField(unique=True)
+   associated_device_ids = models.JSONField(default=list, blank=True)
+   license = models.ForeignKey('LicenseKey', on_delete=models.CASCADE, null=True, blank=True, related_name='users')
+   groups = models.ManyToManyField(Group, related_name='users', blank=True)
 
-    def __str__(self):
-        return self.username
+   def __str__(self):
+    return self.username
+
 
 # ---
 # 5. Policies Model

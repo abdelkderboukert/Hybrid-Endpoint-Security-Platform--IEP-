@@ -16,7 +16,8 @@ from .views import (
     UserViewSet,
     ServerViewSet,
     DeviceViewSet,
-    MasterSyncAPIView
+    MasterSyncAPIView,
+    GroupViewSet
 )
 
 router = DefaultRouter()
@@ -24,6 +25,7 @@ router.register(r'servers', ServerViewSet, basename='server')
 router.register(r'devices', DeviceViewSet, basename='device')
 router.register(r'network/admins', AdminViewSet, basename='network-admin')
 router.register(r'network/users', UserViewSet, basename='network-user')
+router.register(r'network/groups', GroupViewSet, basename='group')
 
 
 urlpatterns = [
