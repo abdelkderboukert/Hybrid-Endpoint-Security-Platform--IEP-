@@ -8,17 +8,17 @@ part of 'models.dart';
 
 SyncableModel _$SyncableModelFromJson(Map<String, dynamic> json) =>
     SyncableModel(
-      lastModified: fromUtcIso8601String(json['lastModified'] as String?),
-      lastModifiedBy: json['lastModifiedBy'] as String?,
-      sourceDeviceId: json['sourceDeviceId'] as String?,
+      lastModified: fromUtcIso8601String(json['last_modified'] as String?),
+      lastModifiedBy: json['last_modified_by'] as String?,
+      sourceDeviceId: json['source_device_id'] as String?,
       version: (json['version'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$SyncableModelToJson(SyncableModel instance) =>
     <String, dynamic>{
-      'lastModified': toUtcIso8601String(instance.lastModified),
-      'lastModifiedBy': instance.lastModifiedBy,
-      'sourceDeviceId': instance.sourceDeviceId,
+      'last_modified': toUtcIso8601String(instance.lastModified),
+      'last_modified_by': instance.lastModifiedBy,
+      'source_device_id': instance.sourceDeviceId,
       'version': instance.version,
     };
 
@@ -37,15 +37,15 @@ Admin _$AdminFromJson(Map<String, dynamic> json) =>
         lastLogin: fromUtcIso8601String(json['last_login'] as String?),
         dateJoined: fromUtcIso8601String(json['date_joined'] as String?),
       )
-      ..lastModified = fromUtcIso8601String(json['lastModified'] as String?)
-      ..lastModifiedBy = json['lastModifiedBy'] as String?
-      ..sourceDeviceId = json['sourceDeviceId'] as String?
+      ..lastModified = fromUtcIso8601String(json['last_modified'] as String?)
+      ..lastModifiedBy = json['last_modified_by'] as String?
+      ..sourceDeviceId = json['source_device_id'] as String?
       ..version = (json['version'] as num?)?.toInt();
 
 Map<String, dynamic> _$AdminToJson(Admin instance) => <String, dynamic>{
-  'lastModified': toUtcIso8601String(instance.lastModified),
-  'lastModifiedBy': instance.lastModifiedBy,
-  'sourceDeviceId': instance.sourceDeviceId,
+  'last_modified': toUtcIso8601String(instance.lastModified),
+  'last_modified_by': instance.lastModifiedBy,
+  'source_device_id': instance.sourceDeviceId,
   'version': instance.version,
   'admin_id': instance.adminId,
   'username': instance.username,
@@ -101,15 +101,15 @@ Server _$ServerFromJson(Map<String, dynamic> json) =>
           json['last_info_update'] as String?,
         ),
       )
-      ..lastModified = fromUtcIso8601String(json['lastModified'] as String?)
-      ..lastModifiedBy = json['lastModifiedBy'] as String?
-      ..sourceDeviceId = json['sourceDeviceId'] as String?
+      ..lastModified = fromUtcIso8601String(json['last_modified'] as String?)
+      ..lastModifiedBy = json['last_modified_by'] as String?
+      ..sourceDeviceId = json['source_device_id'] as String?
       ..version = (json['version'] as num?)?.toInt();
 
 Map<String, dynamic> _$ServerToJson(Server instance) => <String, dynamic>{
-  'lastModified': toUtcIso8601String(instance.lastModified),
-  'lastModifiedBy': instance.lastModifiedBy,
-  'sourceDeviceId': instance.sourceDeviceId,
+  'last_modified': toUtcIso8601String(instance.lastModified),
+  'last_modified_by': instance.lastModifiedBy,
+  'source_device_id': instance.sourceDeviceId,
   'version': instance.version,
   'server_id': instance.serverId,
   'server_type': instance.serverType,
@@ -165,15 +165,15 @@ Device _$DeviceFromJson(Map<String, dynamic> json) =>
         ipAddresses: json['ip_addresses'] as List<dynamic>?,
         macAddresses: json['mac_addresses'] as List<dynamic>?,
       )
-      ..lastModified = fromUtcIso8601String(json['lastModified'] as String?)
-      ..lastModifiedBy = json['lastModifiedBy'] as String?
-      ..sourceDeviceId = json['sourceDeviceId'] as String?
+      ..lastModified = fromUtcIso8601String(json['last_modified'] as String?)
+      ..lastModifiedBy = json['last_modified_by'] as String?
+      ..sourceDeviceId = json['source_device_id'] as String?
       ..version = (json['version'] as num?)?.toInt();
 
 Map<String, dynamic> _$DeviceToJson(Device instance) => <String, dynamic>{
-  'lastModified': toUtcIso8601String(instance.lastModified),
-  'lastModifiedBy': instance.lastModifiedBy,
-  'sourceDeviceId': instance.sourceDeviceId,
+  'last_modified': toUtcIso8601String(instance.lastModified),
+  'last_modified_by': instance.lastModifiedBy,
+  'source_device_id': instance.sourceDeviceId,
   'version': instance.version,
   'device_id': instance.deviceId,
   'device_name': instance.deviceName,
@@ -203,16 +203,19 @@ User _$UserFromJson(Map<String, dynamic> json) =>
             ?.map((e) => e as String)
             .toList(),
         license: json['license'] as String?,
+        groups: (json['groups'] as List<dynamic>?)
+            ?.map((e) => e as String)
+            .toList(),
       )
-      ..lastModified = fromUtcIso8601String(json['lastModified'] as String?)
-      ..lastModifiedBy = json['lastModifiedBy'] as String?
-      ..sourceDeviceId = json['sourceDeviceId'] as String?
+      ..lastModified = fromUtcIso8601String(json['last_modified'] as String?)
+      ..lastModifiedBy = json['last_modified_by'] as String?
+      ..sourceDeviceId = json['source_device_id'] as String?
       ..version = (json['version'] as num?)?.toInt();
 
 Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
-  'lastModified': toUtcIso8601String(instance.lastModified),
-  'lastModifiedBy': instance.lastModifiedBy,
-  'sourceDeviceId': instance.sourceDeviceId,
+  'last_modified': toUtcIso8601String(instance.lastModified),
+  'last_modified_by': instance.lastModifiedBy,
+  'source_device_id': instance.sourceDeviceId,
   'version': instance.version,
   'user_id': instance.userId,
   'username': instance.username,
@@ -220,6 +223,7 @@ Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
   'email': instance.email,
   'associated_device_ids': instance.associatedDeviceIds,
   'license': instance.license,
+  'groups': instance.groups,
 };
 
 Policy _$PolicyFromJson(Map<String, dynamic> json) =>
@@ -230,15 +234,15 @@ Policy _$PolicyFromJson(Map<String, dynamic> json) =>
         createdByAdminId: json['created_by_admin_id'] as String?,
         applicableLayer: (json['applicable_layer'] as num?)?.toInt(),
       )
-      ..lastModified = fromUtcIso8601String(json['lastModified'] as String?)
-      ..lastModifiedBy = json['lastModifiedBy'] as String?
-      ..sourceDeviceId = json['sourceDeviceId'] as String?
+      ..lastModified = fromUtcIso8601String(json['last_modified'] as String?)
+      ..lastModifiedBy = json['last_modified_by'] as String?
+      ..sourceDeviceId = json['source_device_id'] as String?
       ..version = (json['version'] as num?)?.toInt();
 
 Map<String, dynamic> _$PolicyToJson(Policy instance) => <String, dynamic>{
-  'lastModified': toUtcIso8601String(instance.lastModified),
-  'lastModifiedBy': instance.lastModifiedBy,
-  'sourceDeviceId': instance.sourceDeviceId,
+  'last_modified': toUtcIso8601String(instance.lastModified),
+  'last_modified_by': instance.lastModifiedBy,
+  'source_device_id': instance.sourceDeviceId,
   'version': instance.version,
   'policy_id': instance.policyId,
   'policy_name': instance.policyName,
@@ -257,15 +261,15 @@ Threat _$ThreatFromJson(Map<String, dynamic> json) =>
         ),
         status: json['status'] as String?,
       )
-      ..lastModified = fromUtcIso8601String(json['lastModified'] as String?)
-      ..lastModifiedBy = json['lastModifiedBy'] as String?
-      ..sourceDeviceId = json['sourceDeviceId'] as String?
+      ..lastModified = fromUtcIso8601String(json['last_modified'] as String?)
+      ..lastModifiedBy = json['last_modified_by'] as String?
+      ..sourceDeviceId = json['source_device_id'] as String?
       ..version = (json['version'] as num?)?.toInt();
 
 Map<String, dynamic> _$ThreatToJson(Threat instance) => <String, dynamic>{
-  'lastModified': toUtcIso8601String(instance.lastModified),
-  'lastModifiedBy': instance.lastModifiedBy,
-  'sourceDeviceId': instance.sourceDeviceId,
+  'last_modified': toUtcIso8601String(instance.lastModified),
+  'last_modified_by': instance.lastModifiedBy,
+  'source_device_id': instance.sourceDeviceId,
   'version': instance.version,
   'threat_id': instance.threatId,
   'threat_name': instance.threatName,
@@ -283,15 +287,15 @@ UserPhoto _$UserPhotoFromJson(Map<String, dynamic> json) =>
         photoData: json['photo_data'] as String?,
         timestamp: fromUtcIso8601String(json['timestamp'] as String?),
       )
-      ..lastModified = fromUtcIso8601String(json['lastModified'] as String?)
-      ..lastModifiedBy = json['lastModifiedBy'] as String?
-      ..sourceDeviceId = json['sourceDeviceId'] as String?
+      ..lastModified = fromUtcIso8601String(json['last_modified'] as String?)
+      ..lastModifiedBy = json['last_modified_by'] as String?
+      ..sourceDeviceId = json['source_device_id'] as String?
       ..version = (json['version'] as num?)?.toInt();
 
 Map<String, dynamic> _$UserPhotoToJson(UserPhoto instance) => <String, dynamic>{
-  'lastModified': toUtcIso8601String(instance.lastModified),
-  'lastModifiedBy': instance.lastModifiedBy,
-  'sourceDeviceId': instance.sourceDeviceId,
+  'last_modified': toUtcIso8601String(instance.lastModified),
+  'last_modified_by': instance.lastModifiedBy,
+  'source_device_id': instance.sourceDeviceId,
   'version': instance.version,
   'photo_id': instance.photoId,
   'user_id': instance.userId,
@@ -310,16 +314,16 @@ DataIntegrityLog _$DataIntegrityLogFromJson(Map<String, dynamic> json) =>
         timestamp: fromUtcIso8601String(json['timestamp'] as String?),
         previousHash: json['previous_hash'] as String?,
       )
-      ..lastModified = fromUtcIso8601String(json['lastModified'] as String?)
-      ..lastModifiedBy = json['lastModifiedBy'] as String?
-      ..sourceDeviceId = json['sourceDeviceId'] as String?
+      ..lastModified = fromUtcIso8601String(json['last_modified'] as String?)
+      ..lastModifiedBy = json['last_modified_by'] as String?
+      ..sourceDeviceId = json['source_device_id'] as String?
       ..version = (json['version'] as num?)?.toInt();
 
 Map<String, dynamic> _$DataIntegrityLogToJson(DataIntegrityLog instance) =>
     <String, dynamic>{
-      'lastModified': toUtcIso8601String(instance.lastModified),
-      'lastModifiedBy': instance.lastModifiedBy,
-      'sourceDeviceId': instance.sourceDeviceId,
+      'last_modified': toUtcIso8601String(instance.lastModified),
+      'last_modified_by': instance.lastModifiedBy,
+      'source_device_id': instance.sourceDeviceId,
       'version': instance.version,
       'log_id': instance.logId,
       'device_id': instance.deviceId,
@@ -358,4 +362,27 @@ Map<String, dynamic> _$SyncLogToJson(SyncLog instance) => <String, dynamic>{
   'admin': instance.admin,
   'timestamp': toUtcIso8601String(instance.timestamp),
   'request_data': instance.requestData,
+};
+
+Group _$GroupFromJson(Map<String, dynamic> json) =>
+    Group(
+        groupId: json['group_id'] as String?,
+        groupName: json['group_name'] as String?,
+        description: json['description'] as String?,
+        license: json['license'] as String?,
+      )
+      ..lastModified = fromUtcIso8601String(json['last_modified'] as String?)
+      ..lastModifiedBy = json['last_modified_by'] as String?
+      ..sourceDeviceId = json['source_device_id'] as String?
+      ..version = (json['version'] as num?)?.toInt();
+
+Map<String, dynamic> _$GroupToJson(Group instance) => <String, dynamic>{
+  'last_modified': toUtcIso8601String(instance.lastModified),
+  'last_modified_by': instance.lastModifiedBy,
+  'source_device_id': instance.sourceDeviceId,
+  'version': instance.version,
+  'group_id': instance.groupId,
+  'group_name': instance.groupName,
+  'description': instance.description,
+  'license': instance.license,
 };

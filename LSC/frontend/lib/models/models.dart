@@ -1,8 +1,6 @@
-// // lib/models/models.dart
+// // // lib/models/models.dart
 
-// // import 'dart:convert';
 // import 'package:json_annotation/json_annotation.dart';
-
 // part 'models.g.dart';
 
 // // Helper function for DateTime to ISO 8601 UTC string conversion
@@ -59,17 +57,25 @@
 //   @JsonKey(name: 'parent_admin_id')
 //   String? parentAdminId;
 //   int? layer;
-//   String? license; // Represented as a String UUID
-//   String? server; // Represented as a String UUID
+//   String? license;
+//   String? server;
 //   @JsonKey(name: 'is_active')
 //   bool? isActive;
 //   @JsonKey(name: 'is_staff')
 //   bool? isStaff;
 //   @JsonKey(name: 'is_superuser')
 //   bool? isSuperuser;
-//   @JsonKey(name: 'last_login', fromJson: fromUtcIso8601String, toJson: toUtcIso8601String)
+//   @JsonKey(
+//     name: 'last_login',
+//     fromJson: fromUtcIso8601String,
+//     toJson: toUtcIso8601String,
+//   )
 //   DateTime? lastLogin;
-//   @JsonKey(name: 'date_joined', fromJson: fromUtcIso8601String, toJson: toUtcIso8601String)
+//   @JsonKey(
+//     name: 'date_joined',
+//     fromJson: fromUtcIso8601String,
+//     toJson: toUtcIso8601String,
+//   )
 //   DateTime? dateJoined;
 
 //   Admin({
@@ -103,13 +109,80 @@
 //   @JsonKey(name: 'server_type')
 //   String? serverType;
 //   @JsonKey(name: 'parent_server')
-//   String? parentServer; // Represented as a String UUID
+//   String? parentServer;
 //   @JsonKey(name: 'is_connected')
 //   bool? isConnected;
-//   @JsonKey(name: 'last_heartbeat', fromJson: fromUtcIso8601String, toJson: toUtcIso8601String)
+//   @JsonKey(
+//     name: 'last_heartbeat',
+//     fromJson: fromUtcIso8601String,
+//     toJson: toUtcIso8601String,
+//   )
 //   DateTime? lastHeartbeat;
 //   @JsonKey(name: 'licence_key')
 //   String? licenceKey;
+//   @JsonKey(name: 'owner_admin')
+//   String? ownerAdmin;
+//   @JsonKey(name: 'server_name')
+//   String? serverName;
+//   String? hostname;
+//   String? domain;
+//   String? workgroup;
+//   @JsonKey(name: 'os_name')
+//   String? osName;
+//   @JsonKey(name: 'os_version')
+//   String? osVersion;
+//   @JsonKey(name: 'os_architecture')
+//   String? osArchitecture;
+//   @JsonKey(name: 'os_build')
+//   String? osBuild;
+//   @JsonKey(name: 'cpu_info')
+//   String? cpuInfo;
+//   @JsonKey(name: 'total_ram_gb')
+//   double? totalRamGb;
+//   @JsonKey(name: 'available_storage_gb')
+//   double? availableStorageGb;
+//   @JsonKey(name: 'ip_address')
+//   String? ipAddress;
+//   @JsonKey(name: 'mac_address')
+//   String? macAddress;
+//   @JsonKey(name: 'network_interfaces')
+//   List<dynamic>? networkInterfaces;
+//   @JsonKey(name: 'dns_servers')
+//   List<dynamic>? dnsServers;
+//   @JsonKey(name: 'default_gateway')
+//   String? defaultGateway;
+//   @JsonKey(name: 'current_user')
+//   String? currentUser;
+//   @JsonKey(name: 'user_profile_path')
+//   String? userProfilePath;
+//   @JsonKey(name: 'is_admin_user')
+//   bool? isUserAdmin;
+//   @JsonKey(name: 'antivirus_status')
+//   String? antivirusStatus;
+//   @JsonKey(name: 'firewall_status')
+//   String? firewallStatus;
+//   @JsonKey(
+//     name: 'last_boot_time',
+//     fromJson: fromUtcIso8601String,
+//     toJson: toUtcIso8601String,
+//   )
+//   DateTime? lastBootTime;
+//   @JsonKey(name: 'uptime_hours')
+//   double? uptimeHours;
+//   @JsonKey(name: 'auto_detected')
+//   bool? autoDetected;
+//   @JsonKey(
+//     name: 'detection_timestamp',
+//     fromJson: fromUtcIso8601String,
+//     toJson: toUtcIso8601String,
+//   )
+//   DateTime? detectionTimestamp;
+//   @JsonKey(
+//     name: 'last_info_update',
+//     fromJson: fromUtcIso8601String,
+//     toJson: toUtcIso8601String,
+//   )
+//   DateTime? lastInfoUpdate;
 
 //   Server({
 //     this.serverId,
@@ -118,6 +191,33 @@
 //     this.isConnected,
 //     this.lastHeartbeat,
 //     this.licenceKey,
+//     this.ownerAdmin,
+//     this.serverName,
+//     this.hostname,
+//     this.domain,
+//     this.workgroup,
+//     this.osName,
+//     this.osVersion,
+//     this.osArchitecture,
+//     this.osBuild,
+//     this.cpuInfo,
+//     this.totalRamGb,
+//     this.availableStorageGb,
+//     this.ipAddress,
+//     this.macAddress,
+//     this.networkInterfaces,
+//     this.dnsServers,
+//     this.defaultGateway,
+//     this.currentUser,
+//     this.userProfilePath,
+//     this.isUserAdmin,
+//     this.antivirusStatus,
+//     this.firewallStatus,
+//     this.lastBootTime,
+//     this.uptimeHours,
+//     this.autoDetected,
+//     this.detectionTimestamp,
+//     this.lastInfoUpdate,
 //   });
 
 //   factory Server.fromJson(Map<String, dynamic> json) => _$ServerFromJson(json);
@@ -136,13 +236,32 @@
 //   @JsonKey(name: 'device_name')
 //   String? deviceName;
 //   String? os;
-//   String? server; // Represented as a String UUID
+//   String? server;
 //   @JsonKey(name: 'is_isolated')
 //   bool? isIsolated;
-//   @JsonKey(name: 'last_seen', fromJson: fromUtcIso8601String, toJson: toUtcIso8601String)
+//   @JsonKey(
+//     name: 'last_seen',
+//     fromJson: fromUtcIso8601String,
+//     toJson: toUtcIso8601String,
+//   )
 //   DateTime? lastSeen;
 //   @JsonKey(name: 'current_logged_in_user_id')
 //   String? currentLoggedInUserId;
+//   @JsonKey(name: 'device_type')
+//   String? deviceType;
+//   String? manufacturer;
+//   String? model;
+//   @JsonKey(name: 'serial_number')
+//   String? serialNumber;
+//   String? processor;
+//   @JsonKey(name: 'ram_gb')
+//   double? ramGb;
+//   @JsonKey(name: 'storage_gb')
+//   double? storageGb;
+//   @JsonKey(name: 'ip_addresses')
+//   List<dynamic>? ipAddresses;
+//   @JsonKey(name: 'mac_addresses')
+//   List<dynamic>? macAddresses;
 
 //   Device({
 //     this.deviceId,
@@ -152,6 +271,15 @@
 //     this.isIsolated,
 //     this.lastSeen,
 //     this.currentLoggedInUserId,
+//     this.deviceType,
+//     this.manufacturer,
+//     this.model,
+//     this.serialNumber,
+//     this.processor,
+//     this.ramGb,
+//     this.storageGb,
+//     this.ipAddresses,
+//     this.macAddresses,
 //   });
 
 //   factory Device.fromJson(Map<String, dynamic> json) => _$DeviceFromJson(json);
@@ -173,7 +301,7 @@
 //   String? email;
 //   @JsonKey(name: 'associated_device_ids')
 //   List<String>? associatedDeviceIds;
-//   String? license; // Represented as a String UUID
+//   String? license;
 
 //   User({
 //     this.userId,
@@ -231,7 +359,11 @@
 //   String? threatName;
 //   @JsonKey(name: 'device_id')
 //   String? deviceId;
-//   @JsonKey(name: 'detection_timestamp', fromJson: fromUtcIso8601String, toJson: toUtcIso8601String)
+//   @JsonKey(
+//     name: 'detection_timestamp',
+//     fromJson: fromUtcIso8601String,
+//     toJson: toUtcIso8601String,
+//   )
 //   DateTime? detectionTimestamp;
 //   String? status;
 
@@ -263,7 +395,7 @@
 //   @JsonKey(name: 'threat_id')
 //   String? threatId;
 //   @JsonKey(name: 'photo_data')
-//   String? photoData; // Stored as a Base64 string
+//   String? photoData;
 //   @JsonKey(fromJson: fromUtcIso8601String, toJson: toUtcIso8601String)
 //   DateTime? timestamp;
 
@@ -328,7 +460,11 @@
 //   bool? isActive;
 //   @JsonKey(name: 'assigned_admin')
 //   String? assignedAdmin;
-//   @JsonKey(name: 'date_created', fromJson: fromUtcIso8601String, toJson: toUtcIso8601String)
+//   @JsonKey(
+//     name: 'date_created',
+//     fromJson: fromUtcIso8601String,
+//     toJson: toUtcIso8601String,
+//   )
 //   DateTime? dateCreated;
 
 //   LicenseKey({
@@ -358,21 +494,14 @@
 //   @JsonKey(name: 'request_data')
 //   Map<String, dynamic>? requestData;
 
-//   SyncLog({
-//     this.logId,
-//     this.admin,
-//     this.timestamp,
-//     this.requestData,
-//   });
+//   SyncLog({this.logId, this.admin, this.timestamp, this.requestData});
 
 //   factory SyncLog.fromJson(Map<String, dynamic> json) =>
 //       _$SyncLogFromJson(json);
 //   Map<String, dynamic> toJson() => _$SyncLogToJson(this);
 // }
 
-// // lib/models/models.dart
-
-// ... (existing imports and helper functions)
+// lib/models/models.dart
 import 'package:json_annotation/json_annotation.dart';
 part 'models.g.dart';
 
@@ -398,9 +527,15 @@ DateTime? fromUtcIso8601String(String? date) {
 
 @JsonSerializable(explicitToJson: true)
 class SyncableModel {
-  @JsonKey(fromJson: fromUtcIso8601String, toJson: toUtcIso8601String)
+  @JsonKey(
+    name: 'last_modified',
+    fromJson: fromUtcIso8601String,
+    toJson: toUtcIso8601String,
+  )
   DateTime? lastModified;
+  @JsonKey(name: 'last_modified_by')
   String? lastModifiedBy;
+  @JsonKey(name: 'source_device_id')
   String? sourceDeviceId;
   int? version;
 
@@ -661,7 +796,7 @@ class Device extends SyncableModel {
 }
 
 // --------------------------------------------------------------------------
-// 4. User Model
+// 4. User Model (Updated to include Groups)
 // --------------------------------------------------------------------------
 
 @JsonSerializable(explicitToJson: true)
@@ -675,6 +810,8 @@ class User extends SyncableModel {
   @JsonKey(name: 'associated_device_ids')
   List<String>? associatedDeviceIds;
   String? license;
+  @JsonKey(name: 'groups')
+  List<String>? groups; // New field for groups
 
   User({
     this.userId,
@@ -683,6 +820,7 @@ class User extends SyncableModel {
     this.email,
     this.associatedDeviceIds,
     this.license,
+    this.groups, // Add to constructor
   });
 
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
@@ -872,4 +1010,23 @@ class SyncLog {
   factory SyncLog.fromJson(Map<String, dynamic> json) =>
       _$SyncLogFromJson(json);
   Map<String, dynamic> toJson() => _$SyncLogToJson(this);
+}
+
+// --------------------------------------------------------------------------
+// 11. Group Model (New)
+// --------------------------------------------------------------------------
+@JsonSerializable(explicitToJson: true)
+class Group extends SyncableModel {
+  @JsonKey(name: 'group_id')
+  String? groupId;
+  @JsonKey(name: 'group_name')
+  String? groupName;
+  String? description;
+  String? license;
+
+  Group({this.groupId, this.groupName, this.description, this.license});
+
+  factory Group.fromJson(Map<String, dynamic> json) => _$GroupFromJson(json);
+  @override
+  Map<String, dynamic> toJson() => _$GroupToJson(this);
 }
