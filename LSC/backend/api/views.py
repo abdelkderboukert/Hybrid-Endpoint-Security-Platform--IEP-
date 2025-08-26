@@ -1106,7 +1106,7 @@ class MasterSyncAPIView(APIView):
     The main endpoint for bidirectional synchronization.
     It handles both receiving changes (Sync Up) and sending new data (Sync Down).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsLicenseActive]
 
     def post(self, request, *args, **kwargs):
         # 1. Log the request first
@@ -1299,7 +1299,7 @@ class CustomTokenRefreshView(TokenRefreshView):
 
 class AdminProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = AdminProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsLicenseActive]
     
     def get_object(self):
         return self.request.user
@@ -1477,12 +1477,15 @@ class GroupViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not user.license:
             return self.queryset.model.objects.none()
-        return Group.objects.filter(license=user.license)
+        queryset = self.queryset.filter(license=user.license)
+        network_admin_ids = get_descendant_admin_ids(user)
+        return queryset.filter(parent_admin_id__in=network_admin_ids)
+        # return Group.objects.filter(license=user.license)
 
     def perform_create(self, serializer):
         with transaction.atomic():
             creating_admin = self.request.user
-            instance = serializer.save(license=creating_admin.license)
+            instance = serializer.save(parent_admin_id=creating_admin, license=creating_admin.license)
             create_sync_item_and_log(
                 user=creating_admin,
                 model_name="Group",
@@ -1610,7 +1613,7 @@ class ProtectedView(generics.GenericAPIView):
         return Response({"message": "You have access to this protected data!"})
     
 class ServerDetectionAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsLicenseActive]
 
     def post(self, request, *args, **kwargs):
         admin = request.user

@@ -158,6 +158,7 @@ class Device(SyncableModel):
 class Group(SyncableModel):
     group_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     group_name = models.CharField(max_length=255, unique=True)
+    parent_admin_id = models.ForeignKey('Admin', on_delete=models.SET_NULL, null=True, blank=True)
     license = models.ForeignKey('LicenseKey', on_delete=models.CASCADE, null=True, blank=True, related_name='groups')
     description = models.TextField(blank=True, null=True)
 

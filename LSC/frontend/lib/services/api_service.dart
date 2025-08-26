@@ -10,7 +10,7 @@ class ApiService {
   // IMPORTANT: Use your local IP address for physical device testing
   final _baseUrl = 'http://127.0.0.1:8000/api';
 
-  static const bool isDevelopment = true;
+  static const bool isDevelopment = false;
 
   Future<bool> checkLicenseStatus() async {
     String? accessToken = await _storage.read(key: 'access_token');
@@ -34,7 +34,8 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
-        return data['is_active'] as bool? ?? false;
+        return true;
+        // return data['is_active'] as bool? ?? false;
       } else if (response.statusCode == 403) {
         return false;
       } else {
