@@ -377,4 +377,31 @@ class ApiService {
       throw Exception('Failed to move user: ${response.body}');
     }
   }
+
+  Future<List<ServerNode>> fetchNetworkHierarchy() async {
+    // ✅ This is correct
+    String? accessToken = await _storage.read(key: 'access_token');
+    if (accessToken == null) {
+      throw Exception("Access token not found.");
+    }
+
+    // Corrected URL
+    final response = await http.get(
+      Uri.parse('$_baseUrl/servers/hierarchy/'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $accessToken',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = jsonDecode(response.body);
+      // This will now correctly use ServerNode from models.dart
+      return jsonResponse
+          .map((serverJson) => ServerNode.fromJson(serverJson))
+          .toList();
+    } else {
+      throw Exception('Failed to load network data: ${response.statusCode}');
+    }
+  }
 }

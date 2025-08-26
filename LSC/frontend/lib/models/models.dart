@@ -1030,3 +1030,65 @@ class Group extends SyncableModel {
   @override
   Map<String, dynamic> toJson() => _$GroupToJson(this);
 }
+
+// --------------------------------------------------------------------------
+// 12. Hierarchy View Models (New)
+// These models are specifically for the nested server/client network graph UI.
+// --------------------------------------------------------------------------
+
+abstract class NetworkNode {
+  final String id;
+  final String name;
+  NetworkNode({required this.id, required this.name});
+
+  // Factory to decide if the JSON is a Server or Client node
+  factory NetworkNode.fromJson(Map<String, dynamic> json) {
+    if (json.containsKey('children')) {
+      return ServerNode.fromJson(json);
+    } else {
+      return ClientNode.fromJson(json);
+    }
+  }
+}
+
+class ServerNode extends NetworkNode {
+  final List<NetworkNode> children;
+  ServerNode({
+    required super.id,
+    required super.name,
+    this.children = const [],
+  });
+
+  factory ServerNode.fromJson(Map<String, dynamic> json) {
+    var childrenFromJson = json['children'] as List;
+    List<NetworkNode> childrenList = childrenFromJson
+        .map((child) => NetworkNode.fromJson(child))
+        .toList();
+
+    return ServerNode(
+      id: json['id'],
+      name: json['name'],
+      children: childrenList,
+    );
+  }
+}
+
+class ClientNode extends NetworkNode {
+  final String ipAddress;
+  final String status;
+  ClientNode({
+    required super.id,
+    required super.name,
+    required this.ipAddress,
+    required this.status,
+  });
+
+  factory ClientNode.fromJson(Map<String, dynamic> json) {
+    return ClientNode(
+      id: json['id'],
+      name: json['name'],
+      ipAddress: json['ipAddress'] ?? 'N/A', // Handle null IP
+      status: json['status'],
+    );
+  }
+}
