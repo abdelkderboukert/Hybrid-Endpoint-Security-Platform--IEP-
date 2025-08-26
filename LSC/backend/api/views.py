@@ -1003,7 +1003,7 @@ from .models import Admin, User, Device, Server, LicenseKey, Policy, Threat, Use
 from .serializers import (
     AdminRegisterSerializer, MyTokenObtainPairSerializer, AdminProfileSerializer,
     SubAdminCreateSerializer, SubUserCreateSerializer, LicenseKeyActivateSerializer,
-    UserDetailSerializer, ServerSerializer, DeviceSerializer, SyncItemSerializer, MODEL_MAP, GroupSerializer
+    UserDetailSerializer, ServerSerializer, DeviceSerializer, SyncItemSerializer, MODEL_MAP, GroupSerializer,HierarchicalServerSerializer
 )
 
 # Helper function for hierarchy traversal
@@ -1690,3 +1690,29 @@ class ServerDetectionAPIView(APIView):
                 }, status=status.HTTP_201_CREATED)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+class ServerHierarchyView(generics.ListAPIView):
+    """
+    An endpoint to return a hierarchical view of top-level servers 
+    and their associated devices (clients).
+    """
+    serializer_class = HierarchicalServerSerializer
+    permission_classes = [IsAuthenticated, IsLicenseActive]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user.license:
+            return Server.objects.none()
+
+        # Get all admins associated with the current user's license
+        admins_in_license = Admin.objects.filter(license=user.license)
+        
+        # Get all unique server IDs managed by those admins
+        server_ids = admins_in_license.values_list('server_id', flat=True).distinct()
+        
+        # Filter for servers that are part of the license AND are top-level (have no parent_server).
+        # The serializer will handle fetching the 'children' (devices) automatically.
+        return Server.objects.filter(
+            server_id__in=server_ids, 
+            parent_server__isnull=True
+        ).prefetch_related('device_set') # Use prefetch_related for performance

@@ -8,6 +8,7 @@ import 'package:frontend/services/api_service.dart';
 import 'package:frontend/UI/activation_dialog.dart';
 import 'package:frontend/UI/account_page.dart';
 import 'package:frontend/UI/user_group_management_page.dart';
+import 'package:frontend/UI/network_graph_screen.dart';
 // import 'package:frontend/utils/app_navigation_map.dart'; // Import the new map
 
 // The indices are based on the order of items in your NavigationPane,
@@ -224,7 +225,8 @@ class MyHomePageState extends State<MyHomePage> {
               PaneItem(
                 icon: const Icon(FluentIcons.server),
                 title: const Text('Servers'),
-                body: const Center(child: Text('Servers Page')),
+                body:
+                    NetworkGraphScreen(), //const Center(child: Text('Servers Page'))
               ),
               PaneItem(
                 icon: const Icon(FluentIcons.access_logo),
@@ -298,4 +300,3 @@ class MyHomePageState extends State<MyHomePage> {
     );
   }
 }
-

@@ -116,7 +116,7 @@ class _ProfilePageState extends State<AccountPage> {
           _InfoTile(
             icon: FluentIcons.verified_brand_solid,
             label: 'License Active',
-            value: admin.isActive == true ? 'Yes' : 'No',
+            value: admin.license == null ? 'Yes' : 'No',
           ),
           _InfoTile(
             icon: FluentIcons.map_layers,

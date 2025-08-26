@@ -314,3 +314,56 @@ class AdminProfileSerializer(serializers.ModelSerializer):
 
 class LicenseKeyActivateSerializer(serializers.Serializer):
     key = serializers.CharField(required=True, write_only=True)
+
+
+class HierarchicalDeviceSerializer(serializers.ModelSerializer):
+    """
+    Serializes a Device model into the "Client" format you requested.
+    """
+    # Renaming fields to match your desired output
+    id = serializers.UUIDField(source='device_id', read_only=True)
+    name = serializers.CharField(source='device_name')
+    ipAddress = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Device
+        fields = ['id', 'name', 'ipAddress', 'status']
+
+    def get_ipAddress(self, obj):
+        """
+        Extracts the first IP address from the JSONField list.
+        """
+        # The ip_addresses field is a list, so we'll take the first one.
+        if obj.ip_addresses and len(obj.ip_addresses) > 0:
+            return obj.ip_addresses[0]
+        return None
+
+    def get_status(self, obj):
+        """
+        Determines the device status based on its parent server's connectivity.
+        """
+        # A device is 'Online' if its server is connected.
+        return 'Online' if obj.server and obj.server.is_connected else 'Offline'
+
+
+class HierarchicalServerSerializer(serializers.ModelSerializer):
+    """
+    Serializes a Server model and nests its devices using the HierarchicalDeviceSerializer.
+    """
+    # Renaming fields and defining the nested 'children'
+    id = serializers.UUIDField(source='server_id', read_only=True)
+    name = serializers.SerializerMethodField()
+    # This is the key part for nesting. We use the serializer we just defined.
+    # 'device_set' is the default related_name Django creates for the ForeignKey from Device to Server.
+    children = HierarchicalDeviceSerializer(source='device_set', many=True, read_only=True)
+
+    class Meta:
+        model = Server
+        fields = ['id', 'name', 'children']
+        
+    def get_name(self, obj):
+        """
+        Provides a consistent name for the server, falling back to hostname or ID.
+        """
+        return obj.server_name or obj.hostname or str(obj.server_id)
