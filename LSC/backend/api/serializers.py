@@ -257,7 +257,7 @@ class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = '__all__'
-        read_only_fields = ['group_id']
+        read_only_fields = ['group_id','parent_admin_id']
 
 class ServerSerializer(serializers.ModelSerializer):
     class Meta:

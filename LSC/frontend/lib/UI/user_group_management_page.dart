@@ -1,685 +1,3 @@
-// // lib/UI/user_group_management_page.dart
-
-// import 'package:fluent_ui/fluent_ui.dart';
-// import '../models/models.dart';
-// import '../services/api_service.dart';
-
-// /// ViewModel for groups with user counts
-// class GroupWithCount {
-//   final Group group;
-//   final int userCount;
-
-//   GroupWithCount(this.group, this.userCount);
-// }
-
-// class UserGroupManagementPage extends StatefulWidget {
-//   const UserGroupManagementPage({super.key});
-
-//   @override
-//   _UserGroupManagementPageState createState() =>
-//       _UserGroupManagementPageState();
-// }
-
-// class _UserGroupManagementPageState extends State<UserGroupManagementPage> {
-//   final ApiService apiService = ApiService();
-//   late Future<List<dynamic>> usersAndGroupsFuture;
-//   List<dynamic> allUsersAndGroups = [];
-//   List<dynamic> filteredList = [];
-//   final TextEditingController searchController = TextEditingController();
-//   final Set<String> _selectedIds = {};
-//   List<Group> allGroups = [];
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     usersAndGroupsFuture = fetchData();
-//     searchController.addListener(onSearchChanged);
-//   }
-
-//   @override
-//   void dispose() {
-//     searchController.dispose();
-//     super.dispose();
-//   }
-
-//   Future<List<dynamic>> fetchData() async {
-//     try {
-//       final List<Group> groups = await apiService.fetchGroups();
-//       final List<User> unattachedUsers = await apiService
-//           .fetchUnattachedUsers();
-
-//       allGroups = groups;
-
-//       final List<GroupWithCount> groupsWithCount = [];
-//       for (var group in groups) {
-//         final groupUsers = await apiService.fetchUsersByGroup(group.groupId!);
-//         groupsWithCount.add(GroupWithCount(group, groupUsers.length));
-//       }
-
-//       final List<dynamic> combinedList = [
-//         ...groupsWithCount,
-//         ...unattachedUsers,
-//       ];
-
-//       if (mounted) {
-//         setState(() {
-//           allUsersAndGroups = combinedList;
-//           filteredList = combinedList;
-//         });
-//       }
-//       return combinedList;
-//     } catch (e) {
-//       if (mounted) {
-//         displayInfoBar(
-//           context,
-//           builder: (context, close) {
-//             return InfoBar(
-//               title: const Text('Error'),
-//               content: Text('Failed to load data: $e'),
-//               severity: InfoBarSeverity.error,
-//               action: IconButton(
-//                 icon: const Icon(FluentIcons.clear),
-//                 onPressed: close,
-//               ),
-//             );
-//           },
-//         );
-//       }
-//       rethrow;
-//     }
-//   }
-
-//   void onSearchChanged() {
-//     final query = searchController.text.toLowerCase();
-//     setState(() {
-//       filteredList = allUsersAndGroups.where((item) {
-//         if (item is GroupWithCount) {
-//           return item.group.groupName!.toLowerCase().contains(query);
-//         } else if (item is User) {
-//           return item.username!.toLowerCase().contains(query) ||
-//               item.email!.toLowerCase().contains(query);
-//         }
-//         return false;
-//       }).toList();
-//     });
-//   }
-
-//   void _onSelectionChanged(String id, bool? checked) {
-//     setState(() {
-//       if (checked == true) {
-//         _selectedIds.add(id);
-//       } else {
-//         _selectedIds.remove(id);
-//       }
-//     });
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return ScaffoldPage(
-//       header: const PageHeader(title: Text('Users & Groups')),
-//       content: Column(
-//         children: [
-//           // Search bar
-//           Padding(
-//             padding: const EdgeInsets.symmetric(
-//               horizontal: 16.0,
-//               vertical: 8.0,
-//             ),
-//             child: Row(
-//               children: [
-//                 const Text('Show users:'),
-//                 const SizedBox(width: 10),
-//                 Expanded(
-//                   child: SingleChildScrollView(
-//                     scrollDirection: Axis.horizontal,
-//                     child: Row(
-//                       children: [
-//                         _buildStatusFilter(
-//                           'All',
-//                           allUsersAndGroups.length,
-//                           Colors.blue,
-//                         ),
-//                       ],
-//                     ),
-//                   ),
-//                 ),
-//                 const SizedBox(width: 10),
-//                 SizedBox(
-//                   width: 200,
-//                   child: TextBox(
-//                     controller: searchController,
-//                     placeholder: 'Search',
-//                     suffix: const Icon(FluentIcons.search),
-//                   ),
-//                 ),
-//               ],
-//             ),
-//           ),
-
-//           // Action bar
-//           _buildActionBar(),
-
-//           // Table
-//           const Divider(size: 1),
-//           _buildTableHeader(),
-//           const Divider(size: 1),
-
-//           Expanded(
-//             child: FutureBuilder<List<dynamic>>(
-//               future: usersAndGroupsFuture,
-//               builder: (context, snapshot) {
-//                 if (snapshot.connectionState == ConnectionState.waiting) {
-//                   return const Center(child: ProgressRing());
-//                 } else if (snapshot.hasError) {
-//                   return Center(child: Text('Error: ${snapshot.error}'));
-//                 } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-//                   return const Center(child: Text('No data found.'));
-//                 } else {
-//                   return ListView.builder(
-//                     itemCount: filteredList.length,
-//                     itemBuilder: (context, index) {
-//                       final item = filteredList[index];
-//                       return _buildTableRow(item);
-//                     },
-//                   );
-//                 }
-//               },
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-
-//   Widget _buildStatusFilter(String title, int count, Color color) {
-//     return HyperlinkButton(
-//       onPressed: () {},
-//       child: Column(
-//         children: [
-//           Text('$title ($count)', style: TextStyle(color: color)),
-//           Container(height: 2, width: 50, color: color),
-//         ],
-//       ),
-//     );
-//   }
-
-//   Widget _buildActionBar() {
-//     final bool hasSelection = _selectedIds.isNotEmpty;
-//     // Check if any selected item is a user
-//     final bool isUserSelected =
-//         hasSelection &&
-//         filteredList.any((item) {
-//           final String id;
-//           if (item is User) {
-//             id = item.userId!;
-//           } else if (item is GroupWithCount) {
-//             id = item.group.groupId!;
-//           } else {
-//             return false;
-//           }
-//           return _selectedIds.contains(id) && item is User;
-//         });
-
-//     return CommandBar(
-//       primaryItems: [
-//         CommandBarButton(
-//           icon: const Icon(FluentIcons.add),
-//           label: const Text('Add users'),
-//           onPressed: () => _showAddUserDialog(),
-//         ),
-//         CommandBarButton(
-//           icon: const Icon(FluentIcons.group),
-//           label: const Text('Create group'),
-//           onPressed: () => _showCreateGroupDialog(),
-//         ),
-//         CommandBarButton(
-//           icon: const Icon(FluentIcons.folder_open),
-//           label: const Text('Move to group'),
-//           onPressed: isUserSelected ? () => _showMoveUserDialog() : null,
-//         ),
-//         CommandBarButton(
-//           icon: const Icon(FluentIcons.delete),
-//           label: const Text('Delete'),
-//           onPressed: hasSelection ? () => _showDeleteDialog() : null,
-//         ),
-//       ],
-//     );
-//   }
-
-//   Widget _buildTableHeader() {
-//     return const Padding(
-//       padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-//       child: Row(
-//         children: [
-//           Expanded(flex: 1, child: Checkbox(checked: false, onChanged: null)),
-//           Expanded(flex: 4, child: Text('User / Group')),
-//           Expanded(flex: 2, child: Text('Number of devices / members')),
-//           Expanded(flex: 2, child: Text('Comment')),
-//           Expanded(flex: 2, child: Text('Access rights')),
-//           Expanded(flex: 3, child: Text('Security profile')),
-//         ],
-//       ),
-//     );
-//   }
-
-//   Widget _buildTableRow(dynamic item) {
-//     final bool isGroup = item is GroupWithCount;
-//     final String id = isGroup ? item.group.groupId! : item.userId!;
-//     final bool isSelected = _selectedIds.contains(id);
-
-//     final String name = isGroup
-//         ? item.group.groupName ?? 'N/A'
-//         : item.username ?? 'N/A';
-//     final String details = isGroup ? 'Group' : item.email ?? 'N/A';
-
-//     final Widget icon = isGroup
-//         ? const Icon(FluentIcons.group)
-//         : const Icon(FluentIcons.contact);
-
-//     final int count = isGroup
-//         ? item.userCount
-//         : (item.associatedDeviceIds?.length ?? 0);
-
-//     return Button(
-//       onPressed: () {
-//         if (!isGroup) {
-//           _showUserDetailDialog(item as User);
-//         }
-//       },
-//       child: Padding(
-//         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-//         child: Row(
-//           children: [
-//             Expanded(
-//               flex: 1,
-//               // child: Checkbox(
-//               //   checked: isSelected,
-//               //   onChanged: (value) => _onSelectionChanged(id, value),
-//               // ),
-//               child: Checkbox(
-//                 checked: isSelected,
-//                 onChanged: (value) => _onSelectionChanged(id, value),
-//               ),
-//             ),
-//             Expanded(flex: 2, child: icon),
-//             Expanded(
-//               flex: 4,
-//               child: Column(
-//                 crossAxisAlignment: CrossAxisAlignment.start,
-//                 children: [
-//                   Text(
-//                     name,
-//                     style: const TextStyle(fontWeight: FontWeight.bold),
-//                   ),
-//                   Text(details, style: const TextStyle(color: Colors.grey)),
-//                 ],
-//               ),
-//             ),
-//             Expanded(flex: 2, child: Text('$count')),
-//             const Expanded(flex: 2, child: Text('N/A')),
-//             const Expanded(flex: 2, child: Text('N/A')),
-//             const Expanded(flex: 3, child: Text('Default')),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   // --- Dialogs & Actions ---
-
-//   Future<void> _showAddUserDialog() async {
-//     final usernameController = TextEditingController();
-//     final emailController = TextEditingController();
-//     String? selectedGroupId;
-
-//     await showDialog(
-//       context: context,
-//       builder: (context) {
-//         return StatefulBuilder(
-//           builder: (context, setState) {
-//             return ContentDialog(
-//               title: const Text('Add New User'),
-//               content: Column(
-//                 mainAxisSize: MainAxisSize.min,
-//                 children: [
-//                   TextBox(
-//                     controller: usernameController,
-//                     placeholder: 'Username',
-//                   ),
-//                   const SizedBox(height: 10),
-//                   TextBox(controller: emailController, placeholder: 'Email'),
-//                   const SizedBox(height: 10),
-
-//                   // Use ComboBox for single-group selection on creation
-//                   ComboBox<String?>(
-//                     placeholder: const Text('Select Group (optional)'),
-//                     value: selectedGroupId,
-//                     items: allGroups.map((group) {
-//                       return ComboBoxItem(
-//                         value: group.groupId,
-//                         child: Text(group.groupName!),
-//                       );
-//                     }).toList(),
-//                     onChanged: (String? newValue) {
-//                       setState(() {
-//                         selectedGroupId = newValue;
-//                       });
-//                     },
-//                   ),
-//                 ],
-//               ),
-//               actions: [
-//                 Button(
-//                   onPressed: () => Navigator.pop(context),
-//                   child: const Text('Cancel'),
-//                 ),
-//                 FilledButton(
-//                   child: const Text('Add User'),
-//                   onPressed: () async {
-//                     final userData = {
-//                       'username': usernameController.text,
-//                       'email': emailController.text,
-//                       'groups': selectedGroupId != null
-//                           ? [selectedGroupId!]
-//                           : [],
-//                     };
-//                     try {
-//                       await apiService.createUser(userData);
-//                       if (!mounted) return;
-//                       Navigator.pop(context);
-//                       refreshData();
-//                     } catch (e) {
-//                       if (!mounted) return;
-//                       displayInfoBar(
-//                         context,
-//                         builder: (context, close) {
-//                           return InfoBar(
-//                             title: const Text('Error'),
-//                             content: Text('Failed to add user: $e'),
-//                             severity: InfoBarSeverity.error,
-//                             action: IconButton(
-//                               icon: const Icon(FluentIcons.clear),
-//                               onPressed: close,
-//                             ),
-//                           );
-//                         },
-//                       );
-//                     }
-//                   },
-//                 ),
-//               ],
-//             );
-//           },
-//         );
-//       },
-//     );
-//   }
-
-//   Future<void> _showCreateGroupDialog() async {
-//     final groupNameController = TextEditingController();
-//     final descriptionController = TextEditingController();
-
-//     await showDialog(
-//       context: context,
-//       builder: (context) {
-//         return ContentDialog(
-//           title: const Text('Create New Group'),
-//           content: Column(
-//             mainAxisSize: MainAxisSize.min,
-//             children: [
-//               TextBox(
-//                 controller: groupNameController,
-//                 placeholder: 'Group Name',
-//               ),
-//               const SizedBox(height: 10),
-//               TextBox(
-//                 controller: descriptionController,
-//                 placeholder: 'Description',
-//               ),
-//             ],
-//           ),
-//           actions: [
-//             Button(
-//               onPressed: () => Navigator.pop(context),
-//               child: const Text('Cancel'),
-//             ),
-//             FilledButton(
-//               child: const Text('Create'),
-//               onPressed: () async {
-//                 final groupData = {
-//                   'group_name': groupNameController.text,
-//                   'description': descriptionController.text,
-//                 };
-//                 try {
-//                   await apiService.createGroup(groupData);
-//                   if (!mounted) return;
-//                   Navigator.pop(context);
-//                   refreshData();
-//                 } catch (e) {
-//                   if (!mounted) return;
-//                   displayInfoBar(
-//                     context,
-//                     builder: (context, close) {
-//                       return InfoBar(
-//                         title: const Text('Error'),
-//                         content: Text('Failed to create group: $e'),
-//                         severity: InfoBarSeverity.error,
-//                         action: IconButton(
-//                           icon: const Icon(FluentIcons.clear),
-//                           onPressed: close,
-//                         ),
-//                       );
-//                     },
-//                   );
-//                 }
-//               },
-//             ),
-//           ],
-//         );
-//       },
-//     );
-//   }
-
-//   Future<void> _showMoveUserDialog() async {
-//     String? selectedGroupId;
-
-//     await showDialog(
-//       context: context,
-//       builder: (context) {
-//         return StatefulBuilder(
-//           builder: (context, setState) {
-//             return ContentDialog(
-//               title: const Text('Move Selected Users'),
-//               content: Column(
-//                 mainAxisSize: MainAxisSize.min,
-//                 children: [
-//                   const Text(
-//                     'Select a group to move the users to. Selecting "Unattached Users" will remove them from all groups.',
-//                   ),
-//                   const SizedBox(height: 10),
-//                   ComboBox<String?>(
-//                     placeholder: const Text('Select a Group'),
-//                     value: selectedGroupId,
-//                     items: [
-//                       // Option to remove users from all groups
-//                       const ComboBoxItem(
-//                         value: null,
-//                         child: Text('Unattached Users'),
-//                       ),
-//                       ...allGroups.map((group) {
-//                         return ComboBoxItem(
-//                           value: group.groupId,
-//                           child: Text(group.groupName!),
-//                         );
-//                       }),
-//                     ],
-//                     onChanged: (String? newValue) {
-//                       setState(() {
-//                         selectedGroupId = newValue;
-//                       });
-//                     },
-//                   ),
-//                 ],
-//               ),
-//               actions: [
-//                 Button(
-//                   onPressed: () => Navigator.pop(context),
-//                   child: const Text('Cancel'),
-//                 ),
-//                 FilledButton(
-//                   child: const Text('Move'),
-//                   onPressed: selectedGroupId != null
-//                       ? () async {
-//                           try {
-//                             final List<String> groupList =
-//                                 selectedGroupId != null
-//                                 ? [selectedGroupId!]
-//                                 : [];
-//                             for (String userId in _selectedIds) {
-//                               // The backend handles the list, so we can send it directly
-//                               await apiService.updateUser(userId, {
-//                                 'groups': groupList,
-//                               });
-//                             }
-//                             if (!mounted) return;
-//                             Navigator.pop(context);
-//                             refreshData();
-//                           } catch (e) {
-//                             if (!mounted) return;
-//                             displayInfoBar(
-//                               context,
-//                               builder: (context, close) {
-//                                 return InfoBar(
-//                                   title: const Text('Error'),
-//                                   content: Text('Failed to move users: $e'),
-//                                   severity: InfoBarSeverity.error,
-//                                   action: IconButton(
-//                                     icon: const Icon(FluentIcons.clear),
-//                                     onPressed: close,
-//                                   ),
-//                                 );
-//                               },
-//                             );
-//                           }
-//                         }
-//                       : null,
-//                 ),
-//               ],
-//             );
-//           },
-//         );
-//       },
-//     );
-//   }
-
-//   Future<void> _showDeleteDialog() async {
-//     final bool isUser = filteredList.any((item) {
-//       final String id;
-//       if (item is User) {
-//         id = item.userId!;
-//       } else if (item is GroupWithCount) {
-//         id = item.group.groupId!;
-//       } else {
-//         return false;
-//       }
-//       return _selectedIds.contains(id) && item is User;
-//     });
-
-//     final String type = isUser ? 'user(s)' : 'group(s)';
-
-//     await showDialog(
-//       context: context,
-//       builder: (context) {
-//         return ContentDialog(
-//           title: Text('Delete $type?'),
-//           content: Text(
-//             'Are you sure you want to delete the selected $type? This action cannot be undone.',
-//           ),
-//           actions: [
-//             Button(
-//               onPressed: () => Navigator.pop(context),
-//               child: const Text('Cancel'),
-//             ),
-//             FilledButton(
-//               child: const Text('Delete'),
-//               onPressed: () async {
-//                 try {
-//                   for (String id in _selectedIds) {
-//                     if (isUser) {
-//                       await apiService.deleteUser(id);
-//                     } else {
-//                       await apiService.deleteGroup(id);
-//                     }
-//                   }
-//                   if (!mounted) return;
-//                   Navigator.pop(context);
-//                   refreshData();
-//                 } catch (e) {
-//                   if (!mounted) return;
-//                   displayInfoBar(
-//                     context,
-//                     builder: (context, close) {
-//                       return InfoBar(
-//                         title: const Text('Error'),
-//                         content: Text('Failed to delete $type: $e'),
-//                         severity: InfoBarSeverity.error,
-//                         action: IconButton(
-//                           icon: const Icon(FluentIcons.clear),
-//                           onPressed: close,
-//                         ),
-//                       );
-//                     },
-//                   );
-//                 }
-//               },
-//             ),
-//           ],
-//         );
-//       },
-//     );
-//   }
-
-//   void _showUserDetailDialog(User user) {
-//     showDialog(
-//       context: context,
-//       builder: (context) {
-//         return ContentDialog(
-//           title: Text(user.username ?? 'User Details'),
-//           content: Column(
-//             mainAxisSize: MainAxisSize.min,
-//             crossAxisAlignment: CrossAxisAlignment.start,
-//             children: [
-//               Text('Username: ${user.username}'),
-//               const SizedBox(height: 5),
-//               Text('Email: ${user.email}'),
-//               const SizedBox(height: 5),
-//               Text(
-//                 'Number of Devices: ${user.associatedDeviceIds?.length ?? 0}',
-//               ),
-//               const SizedBox(height: 5),
-//               Text('Groups: ${user.groups?.join(', ') ?? 'None'}'),
-//             ],
-//           ),
-//           actions: [
-//             Button(
-//               onPressed: () => Navigator.pop(context),
-//               child: const Text('Close'),
-//             ),
-//           ],
-//         );
-//       },
-//     );
-//   }
-
-//   void refreshData() {
-//     _selectedIds.clear();
-//     setState(() {
-//       usersAndGroupsFuture = fetchData();
-//     });
-//   }
-// }
-
 import 'package:fluent_ui/fluent_ui.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
@@ -933,7 +251,7 @@ class _UserGroupManagementPageState extends State<UserGroupManagementPage> {
                 ),
                 const SizedBox(width: 10),
                 SizedBox(
-                  width: 200,
+                  width: 500,
                   child: TextBox(
                     controller: searchController,
                     placeholder: 'Search',
@@ -1058,8 +376,9 @@ class _UserGroupManagementPageState extends State<UserGroupManagementPage> {
       padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
         children: [
-          Expanded(flex: 1, child: Checkbox(checked: false, onChanged: null)),
-          Expanded(flex: 4, child: Text('User / Group')),
+          Expanded(flex: 0, child: Checkbox(checked: false, onChanged: null)),
+          Expanded(flex: 2, child: Text('')),
+          Expanded(flex: 3, child: Text('User / Group')),
           Expanded(flex: 2, child: Text('Number of devices / members')),
           Expanded(flex: 2, child: Text('Comment')),
           Expanded(flex: 2, child: Text('Access rights')),
@@ -1094,7 +413,7 @@ class _UserGroupManagementPageState extends State<UserGroupManagementPage> {
         child: Row(
           children: [
             Expanded(
-              flex: 1,
+              flex: 0,
               child: Checkbox(
                 checked: isSelected,
                 onChanged: (value) => _onSelectionChanged(id, value),
@@ -1102,7 +421,7 @@ class _UserGroupManagementPageState extends State<UserGroupManagementPage> {
             ),
             Expanded(flex: 2, child: icon),
             Expanded(
-              flex: 4,
+              flex: 2,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1110,7 +429,12 @@ class _UserGroupManagementPageState extends State<UserGroupManagementPage> {
                     name,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  Text(details, style: const TextStyle(color: Colors.grey)),
+                  Text(
+                    details,
+                    style: const TextStyle(
+                      color: Color.fromARGB(255, 143, 143, 143),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2085,9 +1409,10 @@ class GroupDetailPageState extends State<GroupDetailPage> {
           child: Row(
             children: [
               Expanded(
-                flex: 1,
+                flex: 0,
                 child: Checkbox(checked: false, onChanged: null),
               ),
+              Expanded(flex: 2, child: Text('')),
               Expanded(flex: 4, child: Text('Username')),
               Expanded(flex: 2, child: Text('Email')),
               Expanded(flex: 2, child: Text('Devices')),
@@ -2136,16 +1461,43 @@ class GroupDetailPageState extends State<GroupDetailPage> {
                         child: Row(
                           children: [
                             Expanded(
-                              flex: 1,
+                              flex: 0,
                               child: Checkbox(
                                 checked: isSelected,
                                 onChanged: (value) =>
                                     _onSelectionChanged(user.userId!, value),
                               ),
                             ),
+                            // Expanded(
+                            //   flex: 4,
+                            //   child: Column(
+                            //     crossAxisAlignment: CrossAxisAlignment.start,
+                            //     children: [
+                            //       Text(user.username ?? 'N/A'),
+                            //       Text(user.email ?? 'N/A'),
+                            //     ],
+                            //   ),
+                            // ),
+                            Expanded(flex: 2, child: Icon(FluentIcons.contact)),
                             Expanded(
-                              flex: 4,
-                              child: Text(user.username ?? 'N/A'),
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    user.username ?? 'N/A',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    user.email ?? 'N/A',
+                                    style: const TextStyle(
+                                      color: Color.fromARGB(255, 143, 143, 143),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                             Expanded(flex: 2, child: Text(user.email ?? 'N/A')),
                             Expanded(
