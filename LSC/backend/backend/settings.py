@@ -166,7 +166,7 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5), # Short lifetime for access token
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=25), # Short lifetime for access token
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),   # Longer lifetime for refresh token
     'ROTATE_REFRESH_TOKENS': True, # A new refresh token is issued when you use a refresh token
     'BLACKLIST_AFTER_ROTATION': True, # Blacklists the old refresh token
@@ -193,7 +193,7 @@ SIMPLE_JWT = {
     'JTI_CLAIM': 'jti',
 
     'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
-    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=25),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 
     # Custom settings to deliver tokens via HttpOnly cookies

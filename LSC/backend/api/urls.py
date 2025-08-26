@@ -42,7 +42,7 @@ urlpatterns = [
     path('profile/', AdminProfileView.as_view(), name='profile'),
     path('license/activate/', LicenseKeyActivateView.as_view(), name='license_activate'),
 
-    path('network/admins/create/', SubAdminCreateView.as_view(), name='create_sub_admin'),
-    path('network/users/create/', SubUserCreateView.as_view(), name='create_sub_user'),
+    path('network/admins-create/', SubAdminCreateView.as_view(), name='create_sub_admin'),
+    path('network/users-create/', SubUserCreateView.as_view(), name='create_sub_user'),
     path('server/detect/', ServerDetectionAPIView.as_view(), name='server-detect'),
 ]
