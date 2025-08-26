@@ -994,6 +994,9 @@ from django.db import transaction
 from django.utils import timezone
 from datetime import timedelta
 from .util import SystemDetector
+import uuid
+import json
+
 
 from .permissions import IsLicenseActive
 from .models import Admin, User, Device, Server, LicenseKey, Policy, Threat, UserPhoto, DataIntegrityLog, SyncLog, Group
@@ -1017,20 +1020,58 @@ def get_descendant_admin_ids(root_admin):
 
 
 # --- New Centralized Sync Logging Utility Function ---
+# def create_sync_item_and_log(user, model_name, action, data, temp_id=None):
+#     """
+#     Creates a sync item payload and logs it for later synchronization.
+#     This function is called by all views that modify local data.
+#     """
+#     try:
+#         if temp_id and isinstance(temp_id, (int, str)):
+#             temp_id = str(temp_id)
+
+#         sync_item = {
+#             "model_name": model_name,
+#             "action": action,
+#             "temp_id": temp_id,
+#             "data": data
+#         }
+
+#         # Log the item for the MasterSyncAPIView to process later
+#         SyncLog.objects.create(
+#             admin=user,
+#             request_data={'sync_items': [sync_item]}
+#         )
+#         return True, "Sync item logged successfully."
+#     except KeyError:
+#         return False, f"Model '{model_name}' not found."
+#     except Exception as e:
+#         return False, str(e)
+
 def create_sync_item_and_log(user, model_name, action, data, temp_id=None):
     """
     Creates a sync item payload and logs it for later synchronization.
     This function is called by all views that modify local data.
     """
     try:
-        if temp_id and isinstance(temp_id, (int, str)):
+        # Ensure temp_id is a string, as JSONField may not handle UUIDs
+        if isinstance(temp_id, uuid.UUID):
             temp_id = str(temp_id)
+
+        # The 'data' payload might contain UUIDs, so we must serialize them
+        def serialize_data(obj):
+            if isinstance(obj, uuid.UUID):
+                return str(obj)
+            raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
+        # Create a string representation of the data with UUIDs serialized
+        serialized_data_str = json.dumps(data, default=serialize_data)
+        serialized_data = json.loads(serialized_data_str)
 
         sync_item = {
             "model_name": model_name,
             "action": action,
             "temp_id": temp_id,
-            "data": data
+            "data": serialized_data
         }
 
         # Log the item for the MasterSyncAPIView to process later
@@ -1039,10 +1080,11 @@ def create_sync_item_and_log(user, model_name, action, data, temp_id=None):
             request_data={'sync_items': [sync_item]}
         )
         return True, "Sync item logged successfully."
-    except KeyError:
-        return False, f"Model '{model_name}' not found."
     except Exception as e:
-        return False, str(e)
+        # Re-raise the exception to force a transaction rollback.
+        # This is critical for preventing a successful HTTP 201 response
+        # when the database commit actually failed.
+        raise e
 
 # Add a helper function to get the right serializer for a model
 def get_serializer_class_for_model(Model):
@@ -1331,6 +1373,26 @@ class SubAdminCreateView(generics.CreateAPIView):
                 temp_id=instance.pk
             )
 
+# class SubUserCreateView(generics.CreateAPIView):
+#     serializer_class = SubUserCreateSerializer
+#     print(serializer_class)
+#     permission_classes = [IsAuthenticated, IsLicenseActive]
+
+#     def perform_create(self, serializer):
+#         with transaction.atomic():
+#             creating_admin = self.request.user
+#             instance = serializer.save(parent_admin_id=creating_admin, license=creating_admin.license)
+#             full_data = self.get_serializer(instance).data
+
+#             create_sync_item_and_log(
+#                 user=creating_admin,
+#                 model_name="User",
+#                 action="create",
+#                 data=full_data,#serializer.data
+#                 temp_id=instance.pk
+#             )
+#     print("Transaction should be committed now.") 
+
 class SubUserCreateView(generics.CreateAPIView):
     serializer_class = SubUserCreateSerializer
     permission_classes = [IsAuthenticated, IsLicenseActive]
@@ -1339,14 +1401,22 @@ class SubUserCreateView(generics.CreateAPIView):
         with transaction.atomic():
             creating_admin = self.request.user
             instance = serializer.save(parent_admin_id=creating_admin, license=creating_admin.license)
+
+            full_data = self.get_serializer(instance).data
             
-            create_sync_item_and_log(
+            success, message = create_sync_item_and_log(
                 user=creating_admin,
                 model_name="User",
                 action="create",
-                data=serializer.data,
+                data=full_data,
                 temp_id=instance.pk
             )
+            
+            if not success:
+                # If the sync log fails, raise an exception to trigger a rollback
+                raise Exception(f"Failed to create sync log: {message}")
+
+        print("Transaction should be committed now.")
 
 class AdminViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AdminProfileSerializer

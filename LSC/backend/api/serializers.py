@@ -230,10 +230,28 @@ class SubAdminCreateSerializer(serializers.ModelSerializer):
         return new_admin
 
 class SubUserCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating a new User.
+    Updated to accept a list of groups.
+    """
+    groups = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Group.objects.all(),
+        required=False,
+        help_text="A list of group UUIDs to add the user to."
+    )
+
     class Meta:
         model = User
-        fields = ['user_id', 'username', 'email', 'parent_admin_id', 'associated_device_ids']
+        fields = ['user_id', 'username', 'email', 'parent_admin_id', 'associated_device_ids', 'groups']
         read_only_fields = ['user_id', 'parent_admin_id']
+
+    def create(self, validated_data):
+        groups_data = validated_data.pop('groups', [])
+        user = User.objects.create(**validated_data)
+        user.groups.set(groups_data)
+        return user
+
 
 class GroupSerializer(serializers.ModelSerializer):
     class Meta:
@@ -252,12 +270,32 @@ class DeviceSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class UserDetailSerializer(serializers.ModelSerializer):
-    groups = serializers.PrimaryKeyRelatedField(many=True, queryset=Group.objects.all(), required=False)
+    """
+    Serializer for retrieving and updating user details.
+    Allows manipulation of the user's group memberships.
+    """
+    groups = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Group.objects.all(),
+        required=False  # Make this field optional for updates
+    )
     
     class Meta:
         model = User
         fields = ['user_id', 'username', 'email', 'parent_admin_id', 'groups']
         read_only_fields = ['user_id', 'parent_admin_id']
+
+    def update(self, instance, validated_data):
+        # Handle the many-to-many relationship for groups
+        groups_data = validated_data.pop('groups', None)
+
+        # Update the user's other fields
+        instance = super().update(instance, validated_data)
+
+        if groups_data is not None:
+            instance.groups.set(groups_data)  # .set() method handles adding/removing groups
+        
+        return instance
 
 class AdminProfileSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
