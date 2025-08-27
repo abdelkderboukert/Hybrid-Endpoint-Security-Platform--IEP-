@@ -144,7 +144,7 @@
 
 
 ### Configure your environment variables
-@server0_url = http://127.0.0.1:8000
+@server0_url = http://192.168.1.130:8000
 @server1_url = http://127.0.0.1:8001
 @server2_url = http://127.0.0.1:8002
 

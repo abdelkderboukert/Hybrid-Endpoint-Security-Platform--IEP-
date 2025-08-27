@@ -1703,16 +1703,24 @@ class ServerHierarchyView(generics.ListAPIView):
         user = self.request.user
         if not user.license:
             return Server.objects.none()
+        
+        print(user.license.id)
 
         # Get all admins associated with the current user's license
         admins_in_license = Admin.objects.filter(license=user.license)
-        
+        print(admins_in_license)
         # Get all unique server IDs managed by those admins
-        server_ids = admins_in_license.values_list('server_id', flat=True).distinct()
+        # server_ids = admins_in_license.values_list('server_id', flat=True).distinct()
+        server_ids_list = list(
+            admins_in_license.filter(server__isnull=False)
+                           .values_list('server_id', flat=True)
+                           .distinct()
+        )
+        print(server_ids_list)
         
         # Filter for servers that are part of the license AND are top-level (have no parent_server).
         # The serializer will handle fetching the 'children' (devices) automatically.
         return Server.objects.filter(
-            server_id__in=server_ids, 
+            server_id__in=["15d3a0e77adf494ba7170a1c7b88de1a"], #server_ids
             parent_server__isnull=True
         ).prefetch_related('device_set') # Use prefetch_related for performance

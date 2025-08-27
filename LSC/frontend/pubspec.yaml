@@ -43,7 +43,6 @@ dependencies:
   json_annotation: ^4.8.1
   http_interceptor: ^2.0.0-beta.2
   shared_preferences: ^2.2.0
-
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -53,20 +52,24 @@ dev_dependencies:
     sdk: flutter
   build_runner: ^2.4.6
   json_serializable: ^6.7.1
-  flutter_launcher_icons: ^0.13.0
   rename_app:
-
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
 
+# Add this new section below
 flutter_launcher_icons:
-  android: "launcher_icon"
-  ios: true
-  image_path: "assets/images/Bluck_securety.png" #
+  # The path to your logo image
+  image_path: "assets/logo/app_icon.png"
+
+  # Configuration for Windows
+  windows:
+    generate: true
+    image_path: "assets/logo/app_icon.png"
+    icon_size: 500 # The size of the .ico file
+
+  # You can also configure other platforms
+  android: true # To generate for Android
+  ios: true # To generate for iOS
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -78,7 +81,6 @@ flutter:
     - assets/Public/
     - assets/images/Bluck_securety.png
     - assets/images/
-    - assets/bin/
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
