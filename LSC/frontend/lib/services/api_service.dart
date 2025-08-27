@@ -397,6 +397,7 @@ class ApiService {
     if (response.statusCode == 200) {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       // This will now correctly use ServerNode from models.dart
+      print(response.body);
       return jsonResponse
           .map((serverJson) => ServerNode.fromJson(serverJson))
           .toList();
