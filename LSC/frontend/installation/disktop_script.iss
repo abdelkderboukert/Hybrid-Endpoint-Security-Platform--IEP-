@@ -4,7 +4,7 @@
 #define MyAppName "Bluck D-ESC"
 #define MyAppVersion "1.0"
 #define MyAppPublisher "Bluck Securty"
-#define MyAppURL "https://www.example.com/"
+#define MyAppURL "https://www.Bluck.com/"
 #define MyAppExeName "D-ESC.exe"
 
 [Setup]
