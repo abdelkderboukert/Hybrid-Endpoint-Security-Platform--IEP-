@@ -29,6 +29,17 @@ a = Analysis(
         'rest_framework_simplejwt.token_blacklist', # For logout
         'corsheaders',
         'api',
+
+        'celery',
+        'celery.app',
+        'celery.fixups',
+        'celery.fixups.django', 
+        'celery.loaders',
+        'celery.loaders.app',
+        'celery.backends',
+        'celery.backends.database',
+        'celery.backends.rpc',
+        'celery.utils',
     ],
     hookspath=[],
     hooksconfig={},
@@ -54,10 +65,23 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+)
+
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='DSEC_Local_Server',
+    destdir=r'C:\Users\HP\rebo\3LayersUntiVirus\LSC\frontend\assets\backend'
 )

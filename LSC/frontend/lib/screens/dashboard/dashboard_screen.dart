@@ -2,6 +2,7 @@
 
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as matrial; // Use alias for clarity
+import 'package:frontend/UI/build_page.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/screens/auth/login_screen.dart';
 import 'package:frontend/services/api_service.dart';
@@ -83,8 +84,6 @@ class MyHomePageState extends State<MyHomePage> {
     } catch (e) {
       if (!mounted) return; // Check if the widget is still in the tree
 
-      // Use a proper logging framework in production
-      print('Error checking license status: $e');
 
       setState(() {
         _isLicenseActive = false;
@@ -189,7 +188,7 @@ class MyHomePageState extends State<MyHomePage> {
                   const SizedBox(height: 20),
                   FilledButton(
                     onPressed: () => _navigateTo('Settings'),
-                    child: const Text('Go to Settings'),
+                    child: const Text('Go to Settings'), //BuildPage()
                   ),
                 ],
               ),
@@ -261,6 +260,11 @@ class MyHomePageState extends State<MyHomePage> {
                 body: const Center(child: Text('Data Integrity Page')),
               ),
             ],
+          ),
+          PaneItem(
+            icon: const Icon(FluentIcons.build), // or another relevant icon
+            title: const Text('Build'),
+            body: const BuildPage(), // Add the BuildPage here
           ),
         ],
         footerItems: [

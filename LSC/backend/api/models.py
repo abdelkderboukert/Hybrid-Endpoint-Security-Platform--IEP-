@@ -269,19 +269,139 @@
 #     def __str__(self):
 #         return f"Sync log from {self.admin.username} at {self.timestamp.isoformat()}"
 
+# from django.db import models
+# from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+# import uuid
+# from django.utils import timezone
+
+# # Assuming you have this manager in a separate file
+# from .managers import AdminManager 
+
+# # --- Abstract Base Classes for Synchronization ---
+# class SyncableModel(models.Model):
+#     last_modified = models.DateTimeField(auto_now=True)
+#     last_modified_by = models.UUIDField(null=True, blank=True, help_text="ID of the user or admin who made the change.")
+#     source_device_id = models.UUIDField(null=True, blank=True, help_text="ID of the device the change originated from.")
+#     version = models.IntegerField(default=1)
+#     is_deleted = models.BooleanField(default=False)
+
+#     class Meta:
+#         abstract = True
+
+# class HierarchicalModel(models.Model):
+#     parent_id = models.UUIDField(null=True, blank=True)
+
+#     class Meta:
+#         abstract = True
+# # --- End of Abstract Base Classes ---
+
+# # ---
+# # 1. Admins Model
+# # ---
+
+# class Admin(AbstractBaseUser, SyncableModel, HierarchicalModel):
+#     admin_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     username = models.CharField(max_length=255, unique=True)
+#     email = models.EmailField(unique=True)
+#     parent_admin_id = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='children')
+#     layer = models.IntegerField(default=0)
+#     license = models.ForeignKey('LicenseKey', on_delete=models.CASCADE, null=True, blank=True, related_name='admins')
+#     server = models.ForeignKey('Server', on_delete=models.CASCADE, null=True, blank=True)
+#     is_active = models.BooleanField(default=True)
+#     is_staff = models.BooleanField(default=False)
+#     is_superuser = models.BooleanField(default=False)
+#     last_login = models.DateTimeField(null=True, blank=True)
+#     date_joined = models.DateTimeField(auto_now_add=True)
+    
+#     # You will need to create a custom AdminManager
+#     objects = AdminManager() 
+
+#     USERNAME_FIELD = 'username'
+#     REQUIRED_FIELDS = ['email']
+
+#     def __str__(self):
+#         return self.username
+
+# ---
+# 2. Enhanced Servers Model with detailed system information
+# ---
+
+# class Server(SyncableModel): 
+#     SERVER_TYPES = [
+#         ('Cloud', 'Cloud'),
+#         ('Local', 'Local'),
+#         ('Sub-Local', 'Sub-Local'),
+#     ]
+    
+#     server_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     server_type = models.CharField(max_length=20, choices=SERVER_TYPES)
+#     parent_server = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='sub_servers')
+#     is_connected = models.BooleanField(default=False)
+#     last_heartbeat = models.DateTimeField(null=True, blank=True)
+#     licence_key = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    
+#     # Enhanced server information
+#     server_name = models.CharField(max_length=255, blank=True, help_text="Computer/Server name")
+#     hostname = models.CharField(max_length=255, blank=True)
+#     domain = models.CharField(max_length=255, blank=True, help_text="Windows domain if applicable")
+#     workgroup = models.CharField(max_length=255, blank=True, help_text="Windows workgroup if applicable")
+    
+#     # Operating System Information
+#     os_name = models.CharField(max_length=255, blank=True, help_text="e.g., Windows 11, Ubuntu 22.04")
+#     os_version = models.CharField(max_length=255, blank=True)
+#     os_architecture = models.CharField(max_length=50, blank=True, help_text="e.g., x64, x86")
+#     os_build = models.CharField(max_length=100, blank=True)
+    
+#     # Hardware Information
+#     cpu_info = models.TextField(blank=True, help_text="CPU details")
+#     total_ram_gb = models.FloatField(null=True, blank=True, help_text="Total RAM in GB")
+#     available_storage_gb = models.FloatField(null=True, blank=True, help_text="Available storage in GB")
+    
+#     # Network Information
+#     ip_address = models.GenericIPAddressField(null=True, blank=True, help_text="Primary IP address")
+#     mac_address = models.CharField(max_length=17, blank=True, help_text="Primary MAC address")
+#     network_interfaces = models.JSONField(default=list, blank=True, help_text="List of network interfaces")
+#     dns_servers = models.JSONField(default=list, blank=True, help_text="List of DNS servers")
+#     default_gateway = models.GenericIPAddressField(null=True, blank=True)
+    
+#     # Current logged in user info
+#     current_user = models.CharField(max_length=255, blank=True, help_text="Current Windows user")
+#     user_profile_path = models.CharField(max_length=500, blank=True)
+#     is_admin_user = models.BooleanField(default=False, help_text="Is current user admin")
+    
+#     # Security and Status
+#     antivirus_status = models.CharField(max_length=255, blank=True)
+#     firewall_status = models.CharField(max_length=255, blank=True)
+#     last_boot_time = models.DateTimeField(null=True, blank=True)
+#     uptime_hours = models.FloatField(null=True, blank=True)
+
+#     owner_admin = models.ForeignKey('Admin', on_delete=models.SET_NULL, null=True, blank=True, related_name='servers')
+    
+#     # Auto-detection metadata
+#     auto_detected = models.BooleanField(default=False, help_text="Was this server auto-detected")
+#     detection_timestamp = models.DateTimeField(auto_now_add=True)
+#     last_info_update = models.DateTimeField(auto_now=True)
+    
+#     class Meta:
+#         indexes = [
+#             models.Index(fields=['hostname']),
+#             models.Index(fields=['ip_address']),
+#             models.Index(fields=['mac_address']),
+#         ]
+    
+#     def __str__(self):
+#         return f"{self.server_name or self.hostname or str(self.server_id)}"
+
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 import uuid
 from django.utils import timezone
-
-# Assuming you have this manager in a separate file
 from .managers import AdminManager 
 
-# --- Abstract Base Classes for Synchronization ---
 class SyncableModel(models.Model):
     last_modified = models.DateTimeField(auto_now=True)
-    last_modified_by = models.UUIDField(null=True, blank=True, help_text="ID of the user or admin who made the change.")
-    source_device_id = models.UUIDField(null=True, blank=True, help_text="ID of the device the change originated from.")
+    last_modified_by = models.UUIDField(null=True, blank=True)
+    source_device_id = models.UUIDField(null=True, blank=True)
     version = models.IntegerField(default=1)
     is_deleted = models.BooleanField(default=False)
 
@@ -290,14 +410,8 @@ class SyncableModel(models.Model):
 
 class HierarchicalModel(models.Model):
     parent_id = models.UUIDField(null=True, blank=True)
-
     class Meta:
         abstract = True
-# --- End of Abstract Base Classes ---
-
-# ---
-# 1. Admins Model
-# ---
 
 class Admin(AbstractBaseUser, SyncableModel, HierarchicalModel):
     admin_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -313,7 +427,6 @@ class Admin(AbstractBaseUser, SyncableModel, HierarchicalModel):
     last_login = models.DateTimeField(null=True, blank=True)
     date_joined = models.DateTimeField(auto_now_add=True)
     
-    # You will need to create a custom AdminManager
     objects = AdminManager() 
 
     USERNAME_FIELD = 'username'
@@ -321,10 +434,6 @@ class Admin(AbstractBaseUser, SyncableModel, HierarchicalModel):
 
     def __str__(self):
         return self.username
-
-# ---
-# 2. Enhanced Servers Model with detailed system information
-# ---
 
 class Server(SyncableModel): 
     SERVER_TYPES = [
@@ -340,36 +449,32 @@ class Server(SyncableModel):
     last_heartbeat = models.DateTimeField(null=True, blank=True)
     licence_key = models.CharField(max_length=255, unique=True, null=True, blank=True)
     
-    # Enhanced server information
-    server_name = models.CharField(max_length=255, blank=True, help_text="Computer/Server name")
+    server_name = models.CharField(max_length=255, blank=True)
     hostname = models.CharField(max_length=255, blank=True)
-    domain = models.CharField(max_length=255, blank=True, help_text="Windows domain if applicable")
-    workgroup = models.CharField(max_length=255, blank=True, help_text="Windows workgroup if applicable")
+    domain = models.CharField(max_length=255, blank=True)
+    workgroup = models.CharField(max_length=255, blank=True)
     
-    # Operating System Information
-    os_name = models.CharField(max_length=255, blank=True, help_text="e.g., Windows 11, Ubuntu 22.04")
+    os_name = models.CharField(max_length=255, blank=True)
     os_version = models.CharField(max_length=255, blank=True)
-    os_architecture = models.CharField(max_length=50, blank=True, help_text="e.g., x64, x86")
+    os_architecture = models.CharField(max_length=50, blank=True)
     os_build = models.CharField(max_length=100, blank=True)
     
-    # Hardware Information
-    cpu_info = models.TextField(blank=True, help_text="CPU details")
-    total_ram_gb = models.FloatField(null=True, blank=True, help_text="Total RAM in GB")
-    available_storage_gb = models.FloatField(null=True, blank=True, help_text="Available storage in GB")
+    cpu_info = models.TextField(blank=True)
+    total_ram_gb = models.FloatField(null=True, blank=True)
+    available_storage_gb = models.FloatField(null=True, blank=True)
     
-    # Network Information
-    ip_address = models.GenericIPAddressField(null=True, blank=True, help_text="Primary IP address")
-    mac_address = models.CharField(max_length=17, blank=True, help_text="Primary MAC address")
-    network_interfaces = models.JSONField(default=list, blank=True, help_text="List of network interfaces")
-    dns_servers = models.JSONField(default=list, blank=True, help_text="List of DNS servers")
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    mac_address = models.CharField(max_length=17, blank=True)
+    network_interfaces = models.JSONField(default=list, blank=True)
+    dns_servers = models.JSONField(default=list, blank=True)
     default_gateway = models.GenericIPAddressField(null=True, blank=True)
-    
-    # Current logged in user info
-    current_user = models.CharField(max_length=255, blank=True, help_text="Current Windows user")
+
+    system_uuid = models.UUIDField(null=True, blank=True, unique=True)
+
+    current_user = models.CharField(max_length=255, blank=True)
     user_profile_path = models.CharField(max_length=500, blank=True)
-    is_admin_user = models.BooleanField(default=False, help_text="Is current user admin")
+    is_admin_user = models.BooleanField(default=False)
     
-    # Security and Status
     antivirus_status = models.CharField(max_length=255, blank=True)
     firewall_status = models.CharField(max_length=255, blank=True)
     last_boot_time = models.DateTimeField(null=True, blank=True)
@@ -377,8 +482,7 @@ class Server(SyncableModel):
 
     owner_admin = models.ForeignKey('Admin', on_delete=models.SET_NULL, null=True, blank=True, related_name='servers')
     
-    # Auto-detection metadata
-    auto_detected = models.BooleanField(default=False, help_text="Was this server auto-detected")
+    auto_detected = models.BooleanField(default=False)
     detection_timestamp = models.DateTimeField(auto_now_add=True)
     last_info_update = models.DateTimeField(auto_now=True)
     
@@ -387,6 +491,7 @@ class Server(SyncableModel):
             models.Index(fields=['hostname']),
             models.Index(fields=['ip_address']),
             models.Index(fields=['mac_address']),
+            models.Index(fields=['system_uuid']),
         ]
     
     def __str__(self):

@@ -36,6 +36,12 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
+
+[Dirs]
+; Creates a hidden directory in the root of the C: drive.
+; {sd} is the constant for the system drive (usually C:).
+Name: "{sd}\{#MyAppName}_env"; Attribs: hidden
+
 [Files]
 ; This single line copies your entire application.
 Source: "C:\Users\HP\rebo\3LayersUntiVirus\LSC\frontend\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -45,6 +51,8 @@ Source: "configure_firewall.bat"; DestDir: "{tmp}"; Flags: ignoreversion
 
 ; This line adds the uninstallation script (goes to the app folder so the uninstaller can find it).
 Source: "remove_firewall.bat"; DestDir: "{app}"; Flags: ignoreversion
+
+Source: "C:\Users\HP\rebo\3LayersUntiVirus\LSC\backend\.env"; DestDir: "{sd}\{#MyAppName}_env"
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -59,3 +67,7 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 [UninstallRun]
 ; This line runs your firewall removal script silently when the app is uninstalled.
 Filename: "{app}\remove_firewall.bat"; Flags: runhidden waituntilterminated
+
+[UninstallDelete]
+; Create this new section to handle file/folder deletion.
+Type: filesandordirs; Name: "{sd}\{#MyAppName}_env"
