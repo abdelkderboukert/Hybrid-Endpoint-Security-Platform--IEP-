@@ -267,6 +267,7 @@ logger = logging.getLogger(__name__)
 
 @shared_task
 def run_master_sync():
+    print("hi there ")
     sync_url = None
     payload = {
         "sync_items": [],

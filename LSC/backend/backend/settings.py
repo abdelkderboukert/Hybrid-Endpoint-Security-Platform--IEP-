@@ -265,7 +265,9 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist', # For logout
     'corsheaders',
-    'api',  # Your custom app
+    'api',
+    'django_celery_beat'
+    
 ]
 
 # Tell Django to use your custom Admin model for authentication
@@ -360,6 +362,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -434,13 +437,17 @@ REST_AUTH = {
     'JWT_AUTH_REFRESH_COOKIE': 'refresh_token',
 }
 
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
 
 from celery.schedules import crontab
 
 CELERY_BEAT_SCHEDULE = {
     'run-master-sync-every-15-minutes': {
         'task': 'api.tasks.run_master_sync',  # The path to your task function
-        'schedule': crontab(minute='*/15'),   # Runs every 15 minutes
+        # 'schedule': crontab(minute='*/15'),   # Runs every 15 minutes
+        'schedule': crontab(minute='*/1'),   # Runs every 1 minute (for testing)
     },
 }
 
