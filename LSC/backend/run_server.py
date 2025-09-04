@@ -33,6 +33,7 @@ import contextlib
 import subprocess
 import time
 import logging
+from django.conf import settings
 
 # Configure basic logging to see output from all processes
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -65,6 +66,9 @@ def check_and_run_migrations():
 def run_celery_worker():
     """Starts the Celery worker in a new process."""
     logger.info("Starting Celery Worker...")
+    logger.info(f"PARENT_SERVER_ID: {settings.PARENT_SERVER_ID}")
+    logger.info(f"PARENT_SERVER_IP: {settings.INITIAL_PARENT_IP}")
+    logger.info(f"MCC_IP_ADDRESS: {settings.MCC_IP_ADDRESS}")
     try:
         # We redirect stdout to a PIPE to capture and log output later
         worker_process = subprocess.Popen(

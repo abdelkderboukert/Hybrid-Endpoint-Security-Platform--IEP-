@@ -230,6 +230,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
+import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -320,6 +322,7 @@ DATABASES = {
 #         'PORT': config('DB_PORT'),
 #     }
 # }
+
 
 
 # Password validation
@@ -430,3 +433,42 @@ REST_AUTH = {
     'JWT_AUTH_COOKIE': 'access_token',
     'JWT_AUTH_REFRESH_COOKIE': 'refresh_token',
 }
+
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'run-master-sync-every-15-minutes': {
+        'task': 'api.tasks.run_master_sync',  # The path to your task function
+        'schedule': crontab(minute='*/15'),   # Runs every 15 minutes
+    },
+}
+
+
+
+# --- WARNING: This method is not secure and requires the app to run as an administrator ---
+
+# Define the app name exactly as it is in your Inno Setup script
+APP_NAME = "Bluck D-ESC"
+FOLDER_NAME = f"{APP_NAME}_env"
+
+# Build the path to the root of the C: drive.
+# os.environ.get('SystemDrive', 'C:') reliably gets the system drive letter.
+system_drive = os.environ.get('SystemDrive', 'C:')
+env_path = Path(f"{system_drive}\\") / FOLDER_NAME / '.env'
+
+# Load the .env file if it exists
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    # Optional: Handle the case where the .env file is missing
+    print(f"WARNING: Environment file not found at {env_path}")
+
+# Now you can access your variables
+PARENT_SERVER_ID = os.getenv('PARENT_SERVER_ID')
+LSC_MAC_ADDRESS = os.getenv('LSC_MAC_ADDRESS')
+INITIAL_PARENT_IP = os.getenv('INITIAL_PARENT_IP')
+MCC_IP_ADDRESS = os.getenv('MCC_IP_ADDRESS')
+
+
+
