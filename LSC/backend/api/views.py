@@ -843,6 +843,7 @@ class MasterSyncAPIView(APIView):
     permission_classes = [IsAuthenticated,IsLicenseActive]
 
     def post(self, request, *args, **kwargs):
+        print(request.user)
         # 1. Log the request first
         SyncLog.objects.create(admin=request.user, request_data=request.data)
         
