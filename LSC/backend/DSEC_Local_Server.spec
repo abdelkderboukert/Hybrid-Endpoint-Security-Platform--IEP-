@@ -85,3 +85,5 @@ coll = COLLECT(
     name='DSEC_Local_Server',
     destdir=r'C:\Users\HP\rebo\3LayersUntiVirus\LSC\frontend\assets\backend'
 )
+
+
