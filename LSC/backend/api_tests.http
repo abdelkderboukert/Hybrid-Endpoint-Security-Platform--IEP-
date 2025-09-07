@@ -1,0 +1,80 @@
+###
+# API Test File for D-SEC Project
+#
+# INSTRUCTIONS:
+# 1. Update the variables below.
+# 2. Run the "Login" request first to get an access token.
+# 3. Run the other requests in any order.
+###
+
+# -- Variables --
+@baseUrl = http://127.0.0.1:8000
+@username = local_admin
+@password = password123
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU3MjU3MjI4LCJpYXQiOjE3NTcyNTU3MjgsImp0aSI6Ijc0NjZmOWNkNjg5NTQyNDFhMGU2ODE5YWZkZGVhOTU1IiwidXNlcl9pZCI6Ijg3YzFjZjk2LWM5YzYtNDhkMC1hYWI3LWE3NGQxZTgwMTkzNyIsInVzZXJuYW1lIjoibG9jYWxfYWRtaW5fMSIsImVtYWlsIjoibG9jYWxfYWRtaW5fMUBleGFtcGxlLmNvbSJ9.N06bIxKff9rx4E3_vZbVSN1kZxYutmXNC-N56XdFPEw
+
+###
+# @name loginRequest
+# 1. LOGIN: Authenticate as an admin to get an access token.
+# The script below automatically saves the token to the @accessToken variable.
+POST {{baseUrl}}/api/login/
+Content-Type: application/json
+
+{
+    "username": "{{username}}",
+    "password": "{{password}}"
+}
+
+> {%
+    client.global.set("accessToken", response.body.access);
+%}
+
+###
+# 2. GENERATE TOKEN: Create a new Bootstrap Token for a new LSC.
+POST {{baseUrl}}/api/tokens/generate/
+Authorization: Bearer {{accessToken}}
+
+
+###
+# @name createGroupRequest
+# 3. CREATE GROUP: Create a new user group.
+# The script below saves the new group's ID to the @groupId variable.
+POST {{baseUrl}}/api/network/groups/
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+    "group_name": "Testers Group",
+    "description": "A group for our QA testers."
+}
+
+> {%
+    client.global.set("groupId", response.body.group_id);
+%}
+
+
+###
+# 4. CREATE USER: Create a new user and assign them to the group created above.
+POST {{baseUrl}}/api/network/users/
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+    "username": "testuser_from_http",
+    "email": "tester@example.com",
+    "groups": [
+        "{{groupId}}"
+    ]
+}
+
+
+###
+# 5. LIST GROUPS: Get a list of all groups to verify creation.
+GET {{baseUrl}}/api/network/groups/
+Authorization: Bearer {{accessToken}}
+
+
+###
+# 6. VIEW HIERARCHY: Get the server/device hierarchy view.
+GET {{baseUrl}}/api/servers/hierarchy/
+Authorization: Bearer {{accessToken}}

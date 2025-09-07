@@ -5,3 +5,5 @@ bd*
 build/
 
 .env
+
+api/management/*

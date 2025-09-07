@@ -18,7 +18,8 @@ from .views import (
     DeviceViewSet,
     MasterSyncAPIView,
     GroupViewSet,
-    ServerRegistrationView # <-- NEW IMPORT
+    ServerRegistrationView,
+    BootstrapTokenCreateView
 )
 
 router = DefaultRouter()
@@ -39,6 +40,7 @@ urlpatterns = [
     path('', include(router.urls)),
     
     path('sync/', MasterSyncAPIView.as_view(), name='master-sync'),
+    path('tokens/generate/', BootstrapTokenCreateView.as_view(), name='token-generate'),
     
     path('register/', AdminRegisterView.as_view(), name='register'),
     path('login/', CustomLoginView.as_view(), name='login'),

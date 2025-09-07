@@ -275,6 +275,7 @@ AUTH_USER_MODEL = 'api.Admin'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # CORS middleware
     'django.middleware.common.CommonMiddleware',
@@ -363,6 +364,11 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Add this list to tell Django where to look for your project-level static files
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -463,6 +469,7 @@ FOLDER_NAME = f"{APP_NAME}_env"
 # os.environ.get('SystemDrive', 'C:') reliably gets the system drive letter.
 system_drive = os.environ.get('SystemDrive', 'C:')
 env_path = Path(f"{system_drive}\\") / FOLDER_NAME / '.env'
+ENV_PATH = env_path
 
 # Load the .env file if it exists
 if env_path.exists():
@@ -476,6 +483,7 @@ PARENT_SERVER_ID = os.getenv('PARENT_SERVER_ID')
 LSC_MAC_ADDRESS = os.getenv('LSC_MAC_ADDRESS')
 INITIAL_PARENT_IP = os.getenv('INITIAL_PARENT_IP')
 MCC_IP_ADDRESS = os.getenv('MCC_IP_ADDRESS')
-
+BOOTSTRAP_TOKEN = os.getenv('BOOTSTRAP_TOKEN')
+LSC_API_KEY = os.getenv('LSC_API_KEY')
 
 
