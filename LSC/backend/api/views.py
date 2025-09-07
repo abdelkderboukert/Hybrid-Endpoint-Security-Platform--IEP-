@@ -22,17 +22,26 @@ from .models import (
 )
 from .permissions import IsLicenseActive
 from .serializers import (
-    AdminRegisterSerializer, MyTokenObtainPairView, AdminProfileSerializer,
-    SubAdminCreateSerializer, SubUserCreateSerializer, LicenseKeyActivateSerializer,
-    UserDetailSerializer, ServerSerializer, DeviceSerializer, SyncItemSerializer, 
-    MODEL_MAP, GroupSerializer, HierarchicalServerSerializer,MyTokenObtainPairSerializer,
+    AdminRegisterSerializer,
+    MyTokenObtainPairSerializer,
+    AdminProfileSerializer,
+    SubAdminCreateSerializer,
+    SubUserCreateSerializer,
+    LicenseKeyActivateSerializer,
+    UserDetailSerializer,
+    ServerSerializer,
+    DeviceSerializer,
+    SyncItemSerializer,
+    MODEL_MAP,
+    GroupSerializer,
+    HierarchicalServerSerializer,
+    BootstrapTokenSerializer,
 )
 from .util import SystemDetector
 
 
 # --- NEW IMPORTS ---
 from .authentication import LscApiKeyAuthentication
-from .util import get_descendant_admin_ids, create_sync_item_and_log, get_serializer_class_for_model
 
 # Helper function for hierarchy traversal
 def get_descendant_admin_ids(root_admin):
@@ -792,3 +801,17 @@ class ServerHierarchyView(generics.ListAPIView):
             server_id__in=server_ids_list,
             parent_server__isnull=True
         ).prefetch_related('device_set')
+    
+
+class BootstrapTokenCreateView(generics.CreateAPIView):
+    """
+    An endpoint for authenticated admins to generate new Bootstrap Tokens.
+    """
+    serializer_class = BootstrapTokenSerializer
+    permission_classes = [IsAuthenticated]#, IsLicenseActive
+
+    def perform_create(self, serializer):
+        """
+        Automatically sets the 'created_by' field to the current logged-in admin.
+        """
+        serializer.save(created_by=self.request.user)

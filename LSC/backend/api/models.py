@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 import uuid
 from django.utils import timezone
 from .managers import AdminManager 
@@ -19,7 +19,7 @@ class HierarchicalModel(models.Model):
     class Meta:
         abstract = True
 
-class Admin(AbstractBaseUser, SyncableModel, HierarchicalModel):
+class Admin(AbstractBaseUser, SyncableModel, HierarchicalModel, PermissionsMixin):
     admin_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=255, unique=True)
     email = models.EmailField(unique=True)
@@ -59,6 +59,7 @@ class Server(SyncableModel):
     hostname = models.CharField(max_length=255, blank=True)
     domain = models.CharField(max_length=255, blank=True)
     workgroup = models.CharField(max_length=255, blank=True)
+    api_key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, help_text="Secret key for LSC to authenticate with its parent.")
     
     os_name = models.CharField(max_length=255, blank=True)
     os_version = models.CharField(max_length=255, blank=True)
