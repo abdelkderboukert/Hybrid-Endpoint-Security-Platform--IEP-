@@ -19,7 +19,8 @@ from .views import (
     MasterSyncAPIView,
     GroupViewSet,
     ServerRegistrationView,
-    BootstrapTokenCreateView
+    BootstrapTokenCreateView,
+    GenerateInstallerView
 )
 
 router = DefaultRouter()
@@ -31,7 +32,9 @@ router.register(r'network/groups', GroupViewSet, basename='group')
 
 
 urlpatterns = [
-    # --- NEW ENDPOINT ---
+    path(
+        'generate-installer/', GenerateInstallerView.as_view(), name='proxy_generate_installer'
+    ),
     path('server/register/', ServerRegistrationView.as_view(), name='server-register'),
     
     path('servers/hierarchy/', ServerHierarchyView.as_view(), name='server-hierarchy'),
