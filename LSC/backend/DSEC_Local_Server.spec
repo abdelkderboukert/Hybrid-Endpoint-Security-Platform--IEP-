@@ -1,6 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from PyInstaller.utils.hooks import collect_data_files
+
 block_cipher = None
+
+# Collect all of Django's required data files (like translations)
+django_datas = collect_data_files('django')
 
 
 a = Analysis(
@@ -8,13 +13,11 @@ a = Analysis(
     pathex=['C:\\Users\\HP\\rebo\\3LayersUntiVirus\\LSC\\backend'],
     binaries=[],
     datas=[
-    ('db.sqlite3', '.'),
-    # Add DRF templates
-    ('C:\\Users\\HP\\rebo\\3LayersUntiVirus\\LSC\\backend\\virt\\Lib\\site-packages\\rest_framework\\templates', 'rest_framework\\templates'),
-    # Add DRF static files
-    ('C:\\Users\\HP\\rebo\\3LayersUntiVirus\\LSC\\backend\\virt\\Lib\\site-packages\\rest_framework\\static', 'rest_framework\\static'),
+        ('C:\\Users\\HP\\rebo\\3LayersUntiVirus\\LSC\\backend\\virt\\Lib\\site-packages\\rest_framework\\templates', 'rest_framework/templates'),
+        *django_datas,
     ],
     hiddenimports=[
+        # Django apps
         'django.contrib.admin',
         'django.contrib.auth',
         'django.contrib.contenttypes',
@@ -26,21 +29,47 @@ a = Analysis(
         'dj_rest_auth',
         'dj_rest_auth.registration',
         'rest_framework_simplejwt',
-        'rest_framework_simplejwt.token_blacklist', # For logout
+        'rest_framework_simplejwt.token_blacklist',
         'corsheaders',
         'api',
+        'django_celery_beat',
 
+        # Other critical packages
+        'whitenoise',
+        'psutil',
+        'chardet',
+        'dotenv',
+        'waitress',
+        
+        # pywin32 modules
+        'win32timezone',
+        'win32api',
+        'win32con',
+        'win32file',
+
+        # The Definitive Celery List
         'celery',
         'celery.app',
         'celery.fixups',
-        'celery.fixups.django', 
+        'celery.fixups.django',
         'celery.loaders',
         'celery.loaders.app',
         'celery.backends',
         'celery.backends.database',
         'celery.backends.rpc',
-        'celery.utils',
-    ],
+        'kombu.transport.redis',
+        'celery.concurrency.solo',
+        'celery.apps.worker',
+        'celery.apps.beat',
+        'celery.app.log',
+        'celery.contrib.django',
+        'celery.app.amqp',
+        'django_celery_beat.schedulers',
+        'celery.worker.components',
+        'django_celery_beat.models',
+        'celery.worker.autoscale',
+        'billiard',
+    ],  # <-- A missing comma here can cause the syntax error
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -54,26 +83,15 @@ pyz = PYZ(a.pure, a.zipped_data,
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='DSEC_Local_Server',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
     console=True,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
 )
-
-
 coll = COLLECT(
     exe,
     a.binaries,
@@ -81,9 +99,5 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=True,
-    upx_exclude=[],
     name='DSEC_Local_Server',
-    destdir=r'C:\Users\HP\rebo\3LayersUntiVirus\LSC\frontend\assets\backend'
 )
-
-
