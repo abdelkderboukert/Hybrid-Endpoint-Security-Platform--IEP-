@@ -107,7 +107,7 @@
 #             logger.error(f"An unexpected error occurred during registration: {e}")
 
 
-from celery import shared_task
+# from celery import shared_task
 from django.conf import settings
 from django.urls import reverse
 import requests
@@ -164,7 +164,7 @@ def perform_standard_sync(api_key: str, parent_ip: str):
     except Exception as e:
         logger.error(f"An unexpected error occurred during standard sync: {e}")
 
-@shared_task
+# @shared_task
 def run_master_sync():
     # --- THIS IS THE CRUCIAL FIX ---
     # Manually load the .env file every time the task runs

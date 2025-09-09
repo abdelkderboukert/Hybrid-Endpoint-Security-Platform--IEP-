@@ -808,7 +808,7 @@ class BootstrapTokenCreateView(generics.CreateAPIView):
     An endpoint for authenticated admins to generate new Bootstrap Tokens.
     """
     serializer_class = BootstrapTokenSerializer
-    permission_classes = [IsAuthenticated]#, IsLicenseActive
+    permission_classes = [IsAuthenticated, IsLicenseActive]#
 
     def perform_create(self, serializer):
         """

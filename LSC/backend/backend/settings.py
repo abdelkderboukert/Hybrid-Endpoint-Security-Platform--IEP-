@@ -266,7 +266,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist', # For logout
     'corsheaders',
     'api',
-    'django_celery_beat'
+    'django_celery_beat',
+    'django_apscheduler',
     
 ]
 
@@ -443,19 +444,19 @@ REST_AUTH = {
     'JWT_AUTH_REFRESH_COOKIE': 'refresh_token',
 }
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+# CELERY_BROKER_URL = 'redis://localhost:6379/0'
+# CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
 
-from celery.schedules import crontab
+# from celery.schedules import crontab
 
-CELERY_BEAT_SCHEDULE = {
-    'run-master-sync-every-15-minutes': {
-        'task': 'api.tasks.run_master_sync',  # The path to your task function
-        # 'schedule': crontab(minute='*/15'),   # Runs every 15 minutes
-        'schedule': crontab(minute='*/1'),   # Runs every 1 minute (for testing)
-    },
-}
+# CELERY_BEAT_SCHEDULE = {
+#     'run-master-sync-every-15-minutes': {
+#         'task': 'api.tasks.run_master_sync',  # The path to your task function
+#         # 'schedule': crontab(minute='*/15'),   # Runs every 15 minutes
+#         'schedule': crontab(minute='*/1'),   # Runs every 1 minute (for testing)
+#     },
+# }
 
 
 
