@@ -14,6 +14,11 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from dj_rest_auth.views import LogoutView
 import uuid
 import json
+import requests
+from django.http import StreamingHttpResponse, JsonResponse
+from django.views import View
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 
 # Local App Imports
 from .authentication import LscApiKeyAuthentication
@@ -109,6 +114,61 @@ def get_serializer_class_for_model(Model):
     return None # Or a base serializer
 
 
+# class ServerRegistrationView(generics.GenericAPIView):
+#     permission_classes = [permissions.AllowAny]
+#     serializer_class = ServerSerializer
+
+#     def post(self, request, *args, **kwargs):
+#         token_from_client = request.data.get('bootstrap_token')
+#         server_data = request.data.get('server_data')
+
+#         if not token_from_client or not server_data:
+#             return Response(
+#                 {"error": "Bootstrap token and server data are required."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         try:
+#             token = BootstrapToken.objects.select_related('created_by__license', 'created_by__server').get(token=token_from_client, is_used=False)
+#         except BootstrapToken.DoesNotExist:
+#             return Response({"error": "Invalid or already used bootstrap token."}, status=status.HTTP_403_FORBIDDEN)
+
+#         with transaction.atomic():
+#             token.is_used = True
+#             token.save()
+
+#             owner_username = f"lsc_admin_{server_data.get('hostname', uuid.uuid4().hex[:6])}"
+            
+#             try:
+#                 owner_admin = Admin.objects.create_user(
+#                     username=owner_username,
+#                     email=f"{owner_username}@lsc.local",
+#                     password=str(uuid.uuid4()),
+#                     layer=token.created_by.layer + 1,
+#                     parent_admin_id=token.created_by,
+#                     license=token.created_by.license
+#                 )
+#             except IntegrityError:
+#                  return Response({"error": f"An admin with username '{owner_username}' already exists. The server may already be registered."}, status=status.HTTP_409_CONFLICT)
+
+#             server_data['owner_admin'] = owner_admin.admin_id
+#             if token.created_by.server:
+#                 server_data['parent_server'] = token.created_by.server.server_id
+
+#             serializer = self.get_serializer(data=server_data)
+#             serializer.is_valid(raise_exception=True)
+#             new_server = serializer.save(owner_admin=owner_admin)
+
+#             owner_admin.server = new_server
+#             owner_admin.save()
+        
+#         return Response({
+#             "message": "Server registered successfully.",
+#             "api_key": str(new_server.api_key),
+#             "server_id": str(new_server.server_id),
+#             "admin_id": str(owner_admin.admin_id)
+#         }, status=status.HTTP_201_CREATED)
+
 class ServerRegistrationView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = ServerSerializer
@@ -116,35 +176,39 @@ class ServerRegistrationView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         token_from_client = request.data.get('bootstrap_token')
         server_data = request.data.get('server_data')
+        # --- NEW: Expect the admin's UUID (ID) from the LSC's .env file ---
+        owner_admin_id = request.data.get('owner_admin_id')
 
-        if not token_from_client or not server_data:
+        if not token_from_client or not server_data or not owner_admin_id:
             return Response(
-                {"error": "Bootstrap token and server data are required."},
+                {"error": "Bootstrap token, server data, and owner_admin_id are required."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
-            token = BootstrapToken.objects.select_related('created_by__license', 'created_by__server').get(token=token_from_client, is_used=False)
+            token = BootstrapToken.objects.select_related('created_by__license').get(token=token_from_client, is_used=False)
         except BootstrapToken.DoesNotExist:
             return Response({"error": "Invalid or already used bootstrap token."}, status=status.HTTP_403_FORBIDDEN)
+
+        # --- MODIFIED: Find the existing admin by their primary key (UUID) ---
+        try:
+            owner_admin = Admin.objects.get(
+                admin_id=owner_admin_id,
+                license=token.created_by.license  # Security check: must be in the same license
+            )
+        except Admin.DoesNotExist:
+            return Response({"error": f"Admin with ID '{owner_admin_id}' not found or does not belong to the correct license."}, status=status.HTTP_404_NOT_FOUND)
+        
+        if owner_admin.server is not None:
+             return Response({"error": f"Admin '{owner_admin.username}' already owns a server."}, status=status.HTTP_409_CONFLICT)
 
         with transaction.atomic():
             token.is_used = True
             token.save()
-
-            owner_username = f"lsc_admin_{server_data.get('hostname', uuid.uuid4().hex[:6])}"
             
-            try:
-                owner_admin = Admin.objects.create_user(
-                    username=owner_username,
-                    email=f"{owner_username}@lsc.local",
-                    password=str(uuid.uuid4()),
-                    layer=token.created_by.layer + 1,
-                    parent_admin_id=token.created_by,
-                    license=token.created_by.license
-                )
-            except IntegrityError:
-                 return Response({"error": f"An admin with username '{owner_username}' already exists. The server may already be registered."}, status=status.HTTP_409_CONFLICT)
+            # This logic remains the same: ensure correct hierarchy
+            owner_admin.parent_admin_id = token.created_by
+            owner_admin.layer = token.created_by.layer + 1
 
             server_data['owner_admin'] = owner_admin.admin_id
             if token.created_by.server:
@@ -162,10 +226,8 @@ class ServerRegistrationView(generics.GenericAPIView):
             "api_key": str(new_server.api_key),
             "server_id": str(new_server.server_id),
             "admin_id": str(owner_admin.admin_id)
-        }, status=status.HTTP_201_CREATED)
-    
+        }, status=status.HTTP_201_CREATED)    
 
-# --- The Master Sync Endpoint ---
 class MasterSyncAPIView(APIView):
     """
     The main endpoint for bidirectional synchronization.
@@ -359,8 +421,6 @@ class MasterSyncAPIView(APIView):
                 })
         
         return sync_down_list
-
-# --- Other API Views (Modified to use the new sync utility) ---
 
 class AdminRegisterView(generics.CreateAPIView):
     queryset = Admin.objects.all()
@@ -800,8 +860,7 @@ class ServerHierarchyView(generics.ListAPIView):
         return Server.objects.filter(
             server_id__in=server_ids_list,
             parent_server__isnull=True
-        ).prefetch_related('device_set')
-    
+        ).prefetch_related('device_set')  
 
 class BootstrapTokenCreateView(generics.CreateAPIView):
     """
@@ -815,3 +874,70 @@ class BootstrapTokenCreateView(generics.CreateAPIView):
         Automatically sets the 'created_by' field to the current logged-in admin.
         """
         serializer.save(created_by=self.request.user)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class GenerateInstallerView(View):
+    """
+    Handles the generation and streaming of an installer file by proxying
+    a request to an external service after authenticating with an API key.
+    """
+    
+    def post(self, request, *args, **kwargs):
+        # 1. Get the API key from the frontend request
+        try:
+            data = json.loads(request.body)
+            api_key = data.get('api_key')
+            owner_admin_id = data.get('owner_admin_id')
+            if not api_key or not owner_admin_id:
+                print("Invalid JSON in request body.")
+                return JsonResponse({'error': 'API key and owner_admin_id are required.'}, status=400)
+                
+        except json.JSONDecodeError:
+            print("Invalid JSON in request body.")
+            return JsonResponse({'error': 'Invalid JSON in request body.'}, status=400)
+            
+
+        # 2. Fetch the server data from your database
+        try:
+            server = Server.objects.get(api_key=api_key.strip("'"))
+        except Server.DoesNotExist:
+            print("Unauthorized: Invalid API key.")
+            return JsonResponse({'error': 'Unauthorized: Invalid API key.'}, status=401)
+        except Exception: # Catches invalid UUID format, etc.
+            print("Invalid API key format.")
+            print(api_key)
+            return JsonResponse({'error': 'Invalid API key format.'}, status=400)
+            
+
+        # 3. Build the payload for the external service
+        payload = {
+            'LSC_MAC_ADDRESS': server.mac_address,
+            'PARENT_SERVER_ID': server.server_id,
+            'INITIAL_PARENT_IP': server.ip_address,
+            'BOOTSTRAP_TOKEN': server.bootstrap_token,
+            'OWNER_ADMIN_ID': owner_admin_id,
+        }
+        
+        external_url = 'http://127.0.0.1:8001/generate-installer'
+
+        try:
+            # 4. Make the streaming request
+            response = requests.post(external_url, json=payload, stream=True)
+            response.raise_for_status()
+
+            # 5. Stream the response back to the client
+            streaming_response = StreamingHttpResponse(
+                response.iter_content(chunk_size=8192),
+                content_type=response.headers.get('Content-Type'),
+                status=response.status_code
+            )
+            content_disposition = response.headers.get('Content-Disposition')   
+            if content_disposition:
+                streaming_response['Content-Disposition'] = content_disposition
+            
+            return streaming_response
+
+        except requests.exceptions.HTTPError as e:
+            return JsonResponse({'error': f'Installer generation failed: {e.response.text}'}, status=e.response.status_code)
+        except requests.exceptions.RequestException as e:
+            return JsonResponse({'error': f'Proxy request failed: {e}'}, status=502)
