@@ -362,20 +362,16 @@
 #         logger.info("Shutdown complete.")
 
 
+# run_server.py (Simplified Final Version)
+
 import os
 import sys
-import time
 import logging
 import multiprocessing
 import django
-
 from waitress import serve
 from django.core.wsgi import get_wsgi_application
 from django.conf import settings
-from backend.celery import app as celery_app
-
-# Import the main 'celery' command entrypoint
-from celery.bin.celery import celery as celery_command
 
 # Setup Django before anything else
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
@@ -385,24 +381,6 @@ django.setup()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
-# --- Functions to be the target for our processes ---
-def start_worker():
-    """Target function to run the Celery worker directly."""
-    logger.info("Starting Celery Worker Process...")
-    worker_argv = ['worker', '--loglevel=info', '--pool=solo']
-    celery_app.worker_main(argv=worker_argv)
-
-def start_beat():
-    """Target function to run the Celery beat scheduler directly."""
-    logger.info("Starting Celery Beat Process...")
-    beat_argv = ['-A', 'backend', 'beat', '--loglevel=info', '-S', 'django']
-    # --- THIS IS THE FINAL FIX ---
-    # We pass the arguments directly, without the 'argv=' keyword.
-    celery_command.main(beat_argv)
-
-
-# --- Unchanged functions ---
 def check_and_run_migrations():
     db_path = os.path.join(settings.BASE_DIR, 'db.sqlite3')
     if not os.path.exists(db_path):
@@ -429,24 +407,10 @@ if __name__ == "__main__":
 
     check_and_run_migrations()
     
-    worker_process = multiprocessing.Process(target=start_worker)
-    beat_process = multiprocessing.Process(target=start_beat)
-
-    worker_process.daemon = True
-    beat_process.daemon = True
-    worker_process.start()
-    beat_process.start()
-    
     try:
-        run_production_server()
+        # The scheduler now starts automatically thanks to api/apps.py
+        run_production_server() 
     except KeyboardInterrupt:
-        logger.info("Shutdown signal received.")
+        logger.info("Shutdown signal received. Exiting.")
     finally:
-        logger.info("Terminating background processes...")
-        if worker_process.is_alive():
-            worker_process.terminate()
-            worker_process.join()
-        if beat_process.is_alive():
-            beat_process.terminate()
-            beat_process.join()
         logger.info("Shutdown complete.")

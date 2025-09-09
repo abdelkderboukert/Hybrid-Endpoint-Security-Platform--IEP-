@@ -4,20 +4,20 @@ from PyInstaller.utils.hooks import collect_data_files
 
 block_cipher = None
 
-# Collect all of Django's required data files (like translations)
+# Collect all of Django's required data files (like templates, translations)
 django_datas = collect_data_files('django')
-
 
 a = Analysis(
     ['run_server.py'],
     pathex=['C:\\Users\\HP\\rebo\\3LayersUntiVirus\\LSC\\backend'],
     binaries=[],
     datas=[
+        # Manually include the Django REST Framework templates
         ('C:\\Users\\HP\\rebo\\3LayersUntiVirus\\LSC\\backend\\virt\\Lib\\site-packages\\rest_framework\\templates', 'rest_framework/templates'),
         *django_datas,
     ],
     hiddenimports=[
-        # Django apps
+        # Your Django apps and libraries from INSTALLED_APPS
         'django.contrib.admin',
         'django.contrib.auth',
         'django.contrib.contenttypes',
@@ -32,44 +32,25 @@ a = Analysis(
         'rest_framework_simplejwt.token_blacklist',
         'corsheaders',
         'api',
-        'django_celery_beat',
-
-        # Other critical packages
-        'whitenoise',
-        'psutil',
-        'chardet',
-        'dotenv',
-        'waitress',
         
-        # pywin32 modules
-        'win32timezone',
+        # ✅ NEW: APScheduler and its dependencies
+        'django_apscheduler',
+        'apscheduler',
+        'apscheduler.schedulers.background',
+        'apscheduler.executors.pool',
+        'atexit',
+
+        # Other critical packages used by your project
+        'psutil',
+        'waitress',
+        'decouple',
+        
+        # pywin32 modules used in util.py
         'win32api',
         'win32con',
         'win32file',
-
-        # The Definitive Celery List
-        'celery',
-        'celery.app',
-        'celery.fixups',
-        'celery.fixups.django',
-        'celery.loaders',
-        'celery.loaders.app',
-        'celery.backends',
-        'celery.backends.database',
-        'celery.backends.rpc',
-        'kombu.transport.redis',
-        'celery.concurrency.solo',
-        'celery.apps.worker',
-        'celery.apps.beat',
-        'celery.app.log',
-        'celery.contrib.django',
-        'celery.app.amqp',
-        'django_celery_beat.schedulers',
-        'celery.worker.components',
-        'django_celery_beat.models',
-        'celery.worker.autoscale',
-        'billiard',
-    ],  # <-- A missing comma here can cause the syntax error
+        'win32security', # Added for domain info detection
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -90,7 +71,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,
+    console=True, # Important for seeing server logs
 )
 coll = COLLECT(
     exe,
