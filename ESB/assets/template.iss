@@ -1,10 +1,10 @@
-// This variable will be set by our Python server
-#define SourceDir "C:\Users\HP\rebo\3LayersUntiVirus\ESB\assets"
+// The SourceDir variable is now correctly passed by the Python server via the command line
+// and will point to the temporary build directory.
 
 #define MyAppName "Bluck D-ESC"
 #define MyAppVersion "1.0"
-#define MyAppPublisher "Bluck Securty"
-#define MyAppURL "https://www.Bluck.com/"
+#define MyAppPublisher "Bluck Security"
+#define MyAppURL "https://www.bluck.com/"
 #define MyAppExeName "D-ESC.exe"
 
 [Setup]
@@ -31,11 +31,16 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "{sd}\{#MyAppName}_env"; Attribs: hidden
 
 [Files]
-// Use the {#SourceDir} variable to find files in the temporary folder
-Source: "{#SourceDir}\flutter_app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+// 1. Copy frontend.exe and rename it to bla.exe using DestName
+Source: "{#SourceDir}\flutter_app\frontend.exe"; DestDir: "{app}"; DestName: "D-ESC.exe"; Flags: ignoreversion
+
+// 2. Copy all OTHER files and folders from flutter_app, excluding the original frontend.exe
+Source: "{#SourceDir}\flutter_app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "frontend.exe"
+
+// --- These lines remain the same ---
 Source: "{#SourceDir}\scripts\configure_firewall.bat"; DestDir: "{tmp}"; Flags: ignoreversion
 Source: "{#SourceDir}\scripts\remove_firewall.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\template.env"; DestDir: "{sd}\{#MyAppName}_env"; DestName: ".env"
+Source: "{#SourceDir}\.env"; DestDir: "{sd}\{#MyAppName}_env"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

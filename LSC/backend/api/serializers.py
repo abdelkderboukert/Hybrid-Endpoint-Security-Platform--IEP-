@@ -302,8 +302,8 @@ class AdminProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Admin
-        fields = ['admin_id', 'username', 'email', 'layer', 'date_joined', 'last_login', 'password']
-        read_only_fields = ['admin_id', 'date_joined', 'last_login', 'layer']
+        fields = ['admin_id', 'username', 'email', 'layer', 'date_joined', 'last_login', 'password', 'is_active']
+        read_only_fields = ['admin_id', 'date_joined', 'last_login', 'layer','is_active']
 
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)

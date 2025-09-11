@@ -867,7 +867,7 @@ class BootstrapTokenCreateView(generics.CreateAPIView):
     An endpoint for authenticated admins to generate new Bootstrap Tokens.
     """
     serializer_class = BootstrapTokenSerializer
-    permission_classes = [IsAuthenticated, IsLicenseActive]#
+    permission_classes = [IsAuthenticated, IsLicenseActive]
 
     def perform_create(self, serializer):
         """
@@ -876,62 +876,66 @@ class BootstrapTokenCreateView(generics.CreateAPIView):
         serializer.save(created_by=self.request.user)
 
 @method_decorator(csrf_exempt, name='dispatch')
-class GenerateInstallerView(View):
+class GenerateInstallerView(APIView):
     """
-    Handles the generation and streaming of an installer file by proxying
-    a request to an external service after authenticating with an API key.
+    Handles installer generation by first creating a new bootstrap token,
+    then proxying the request to an external service.
     """
-    
+    permission_classes = [IsAuthenticated, IsLicenseActive] # <-- Add permissions
+
     def post(self, request, *args, **kwargs):
-        # 1. Get the API key from the frontend request
+        # 1. Get data from the frontend request
         try:
             data = json.loads(request.body)
             api_key = data.get('api_key')
             owner_admin_id = data.get('owner_admin_id')
             if not api_key or not owner_admin_id:
-                print("Invalid JSON in request body.")
                 return JsonResponse({'error': 'API key and owner_admin_id are required.'}, status=400)
-                
         except json.JSONDecodeError:
-            print("Invalid JSON in request body.")
             return JsonResponse({'error': 'Invalid JSON in request body.'}, status=400)
-            
 
-        # 2. Fetch the server data from your database
+        # 2. Fetch the server data
         try:
             server = Server.objects.get(api_key=api_key.strip("'"))
         except Server.DoesNotExist:
-            print("Unauthorized: Invalid API key.")
             return JsonResponse({'error': 'Unauthorized: Invalid API key.'}, status=401)
-        except Exception: # Catches invalid UUID format, etc.
-            print("Invalid API key format.")
-            print(api_key)
-            return JsonResponse({'error': 'Invalid API key format.'}, status=400)
-            
+        except Exception as e:
+            return JsonResponse({'error': f'Invalid API key format: {e}'}, status=400)
 
-        # 3. Build the payload for the external service
+        # --- NEW LOGIC: CREATE BOOTSTRAP TOKEN ---
+        # 3. Create a new Bootstrap Token using the serializer
+        # This replicates the logic of your BootstrapTokenCreateView
+        token_serializer = BootstrapTokenSerializer(data={}) # Data is empty since it's auto-generated
+        token_serializer.is_valid(raise_exception=True)
+        # Save the token, associating it with the currently logged-in user
+        token_instance = token_serializer.save(created_by=request.user)
+        new_bootstrap_token = token_instance.token
+        print("token creates seccefuly")
+        # --- END OF NEW LOGIC ---
+
+        # 4. Build the payload for the external service
         payload = {
             'LSC_MAC_ADDRESS': server.mac_address,
-            'PARENT_SERVER_ID': server.server_id,
+            'PARENT_SERVER_ID': str(server.server_id),
             'INITIAL_PARENT_IP': server.ip_address,
-            'BOOTSTRAP_TOKEN': server.bootstrap_token,
+            'BOOTSTRAP_TOKEN': str(new_bootstrap_token),
             'OWNER_ADMIN_ID': owner_admin_id,
         }
         
         external_url = 'http://127.0.0.1:8001/generate-installer'
 
         try:
-            # 4. Make the streaming request
+            # 5. Make the streaming request to the external service
             response = requests.post(external_url, json=payload, stream=True)
             response.raise_for_status()
 
-            # 5. Stream the response back to the client
+            # 6. Stream the response back to the client
             streaming_response = StreamingHttpResponse(
                 response.iter_content(chunk_size=8192),
                 content_type=response.headers.get('Content-Type'),
                 status=response.status_code
             )
-            content_disposition = response.headers.get('Content-Disposition')   
+            content_disposition = response.headers.get('Content-Disposition')
             if content_disposition:
                 streaming_response['Content-Disposition'] = content_disposition
             

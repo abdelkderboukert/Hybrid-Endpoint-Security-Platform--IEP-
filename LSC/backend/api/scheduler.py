@@ -4,6 +4,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from api.tasks import run_master_sync
 import logging
 import atexit
+from datetime import datetime, timedelta 
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ def start():
         run_master_sync, 
         'cron', 
         minute='*/1', 
+        next_run_time=datetime.now() + timedelta(seconds=10),
         id='run_master_sync_job', 
         replace_existing=True
     )

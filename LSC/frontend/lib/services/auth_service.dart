@@ -14,9 +14,6 @@ class AuthService {
 
   Future<dynamic> getAuthenticatedData(String endpoint) async {
     String? accessToken = await storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw AuthException(); // No token, so throw the exception
-    }
 
     final response = await http.get(
       Uri.parse('$_baseUrl/profile/'),
@@ -39,9 +36,6 @@ class AuthService {
 
   Future<bool> refreshToken() async {
     String? refreshToken = await storage.read(key: 'refresh_token');
-    if (refreshToken == null) {
-      return false;
-    }
 
     final response = await http.post(
       Uri.parse('$_baseUrl/token/refresh/'),
@@ -78,9 +72,6 @@ class AuthService {
 
   Future<void> logout() async {
     String? refreshToken = await storage.read(key: 'refresh_token');
-    if (refreshToken == null) {
-      throw AuthException();
-    }
     final response = await http.post(
       Uri.parse('$_baseUrl/logout/'),
       headers: {'Content-Type': 'application/json'},
