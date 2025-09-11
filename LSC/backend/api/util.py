@@ -842,7 +842,8 @@ class SystemDetector:
             try:
                 result = subprocess.run(['powershell', '-Command', 'Get-MpComputerStatus'], 
                                         capture_output=True, text=True, timeout=15, 
-                                        creationflags=subprocess.CREATE_NO_WINDOW)
+                                        creationflags=subprocess.CREATE_NO_WINDOW,
+                                        encoding='utf-8', errors='ignore')
                 if result.returncode == 0 and 'AntivirusEnabled' in result.stdout:
                     if 'True' in [line for line in result.stdout.split('\n') if 'AntivirusEnabled' in line][0]:
                         security_info['antivirus_status'] = 'Windows Defender Active'
@@ -851,7 +852,8 @@ class SystemDetector:
                 
                 result = subprocess.run(['netsh', 'advfirewall', 'show', 'allprofiles', 'state'], 
                                         capture_output=True, text=True, timeout=10, 
-                                        creationflags=subprocess.CREATE_NO_WINDOW)
+                                        creationflags=subprocess.CREATE_NO_WINDOW,
+                                        encoding='utf-8', errors='ignore')
                 if 'State' in result.stdout and 'ON' in result.stdout:
                     security_info['firewall_status'] = 'Windows Firewall Active'
                 else:
@@ -889,7 +891,8 @@ class SystemDetector:
                     capture_output=True,
                     text=True,
                     check=True,
-                    creationflags=subprocess.CREATE_NO_WINDOW
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    encoding='utf-8', errors='ignore'
                 )
                 system_uuid_str = result.stdout.strip()
                 return uuid.UUID(system_uuid_str)

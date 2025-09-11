@@ -6,6 +6,13 @@ import 'package:http/http.dart' as http;
 import '../models/models.dart'; // Import your models file
 
 import 'dart:typed_data'; // Required for byte data
+// import 'package:file_picker/file_picker.dart';
+
+import 'package:path_provider/path_provider.dart'; // Import path_provider
+import 'package:path/path.dart' as p;
+import 'package:flutter/foundation.dart'; // For debugPrint
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 
 class ApiService {
@@ -17,9 +24,6 @@ class ApiService {
 
   Future<bool> checkLicenseStatus() async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      return false;
-    }
 
     if (isDevelopment) {
       // Return true to pass the license check
@@ -37,8 +41,8 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
-        return true;
-        // return data['is_active'] as bool? ?? false;
+        // return true;
+        return data['is_active'] as bool? ?? false;
       } else if (response.statusCode == 403) {
         return false;
       } else {
@@ -51,9 +55,6 @@ class ApiService {
 
   Future<Admin?> getAdminProfile() async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      return null;
-    }
 
     try {
       final response = await http.get(
@@ -77,9 +78,6 @@ class ApiService {
 
   Future<bool> activateLicense(String key) async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      return false;
-    }
 
     try {
       final response = await http.post(
@@ -103,9 +101,6 @@ class ApiService {
 
   Future<Map<String, dynamic>> registerServer() async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found. Please log in.");
-    }
 
     try {
       final response = await http.post(
@@ -136,9 +131,6 @@ class ApiService {
 
   Future<List<Admin>> fetchAdmins() async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found.");
-    }
     final url = Uri.parse('$_baseUrl/network/admins');
     final response = await http.get(
       url,
@@ -154,11 +146,10 @@ class ApiService {
 
   Future<Admin> createAdmin(Map<String, dynamic> adminData) async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) throw Exception("Access token not found.");
 
     // This calls your NEW AdminCreateViewSet
     final response = await http.post(
-      Uri.parse('$_baseUrl/network/users-create/'),
+      Uri.parse('$_baseUrl/network/admins-create/'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $accessToken',
@@ -178,9 +169,6 @@ class ApiService {
   // Fetch all groups
   Future<List<Group>> fetchGroups() async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found.");
-    }
     final url = Uri.parse('$_baseUrl/network/groups/');
     final response = await http.get(
       url,
@@ -197,9 +185,6 @@ class ApiService {
   // Fetch users for a specific group
   Future<List<User>> fetchUsersByGroup(String groupId) async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found.");
-    }
     final url = Uri.parse('$_baseUrl/network/users/?groups=$groupId');
     final response = await http.get(
       url,
@@ -227,9 +212,6 @@ class ApiService {
   // Fetch users that are not in any group
   Future<List<User>> fetchUnattachedUsers() async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found.");
-    }
     final url = Uri.parse('$_baseUrl/network/users/');
     final response = await http.get(
       url,
@@ -250,9 +232,6 @@ class ApiService {
   // ADDED: Fetch a single user by ID
   Future<User> fetchUser(String userId) async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found.");
-    }
     final url = Uri.parse('$_baseUrl/network/users/$userId/');
     final response = await http.get(
       url,
@@ -269,9 +248,6 @@ class ApiService {
   // Create a new group
   Future<Group> createGroup(Map<String, dynamic> groupData) async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found.");
-    }
     final response = await http.post(
       Uri.parse('$_baseUrl/network/groups/'),
       headers: {
@@ -293,9 +269,6 @@ class ApiService {
     Map<String, dynamic> groupData,
   ) async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found.");
-    }
     final response = await http.patch(
       Uri.parse('$_baseUrl/network/groups/$groupId/'),
       headers: {
@@ -314,9 +287,6 @@ class ApiService {
   // Delete a group
   Future<void> deleteGroup(String groupId) async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found.");
-    }
     final response = await http.delete(
       Uri.parse('$_baseUrl/network/groups/$groupId/'),
       headers: {'Authorization': 'Bearer $accessToken'},
@@ -329,9 +299,6 @@ class ApiService {
   // Create a new user
   Future<User> createUser(Map<String, dynamic> userData) async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found.");
-    }
     final response = await http.post(
       Uri.parse('$_baseUrl/network/users-create/'),
       headers: {
@@ -350,9 +317,6 @@ class ApiService {
   // Update an existing user
   Future<User> updateUser(String userId, Map<String, dynamic> userData) async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found.");
-    }
     final response = await http.patch(
       Uri.parse('$_baseUrl/network/users/$userId/'),
       headers: {
@@ -371,9 +335,6 @@ class ApiService {
   // Delete a user
   Future<void> deleteUser(String userId) async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found.");
-    }
     final response = await http.delete(
       Uri.parse('$_baseUrl/network/users/$userId/'),
       headers: {'Authorization': 'Bearer $accessToken'},
@@ -386,9 +347,6 @@ class ApiService {
   // Move a user from one group to another
   Future<User> moveUserToGroup(String userId, String? newGroupId) async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found.");
-    }
     final List<String> groupList = newGroupId != null ? [newGroupId] : [];
 
     final response = await http.patch(
@@ -410,9 +368,6 @@ class ApiService {
   Future<List<ServerNode>> fetchNetworkHierarchy() async {
     // ✅ This is correct
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found.");
-    }
 
     // Corrected URL
     final response = await http.get(
@@ -434,20 +389,76 @@ class ApiService {
     }
   }
 
+  // Future<void> generateAndDownloadInstaller({
+  //   required String apiKey,
+  //   required String ownerAdminId,
+  // }) async {
+  //   String? accessToken = await _storage.read(key: 'access_token');
+  //   if (accessToken == null) {
+  //     throw Exception("Access token not found. Please log in.");
+  //   }
+
+  //   // The endpoint of your Django class-based view
+  //   final url = Uri.parse('$_baseUrl/generate-installer/');
+
+  //   try {
+  //     // 1. Send the POST request with the server's API key
+  //     final response = await http.post(
+  //       url,
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'Authorization': 'Bearer $accessToken',
+  //       },
+  //       body: jsonEncode({'api_key': apiKey, 'owner_admin_id': ownerAdminId}),
+  //     );
+
+  //     // 2. Check for a successful response (200 OK)
+  //     if (response.statusCode == 200) {
+  //       // 3. Get the filename from the 'Content-Disposition' header
+  //       String? disposition = response.headers['content-disposition'];
+  //       String outputFileName = 'Bluck-Security-Setup.exe'; // Default name
+  //       if (disposition != null) {
+  //         final match = RegExp(r'filename="([^"]+)"').firstMatch(disposition);
+  //         if (match != null) {
+  //           outputFileName = match.group(1)!;
+  //         }
+  //       }
+
+  //       // 4. Get the file data as a list of bytes
+  //       final Uint8List fileBytes = response.bodyBytes;
+
+  //       // 5. Use file_picker to open a "Save As..." dialog
+  //       String? outputFile = await FilePicker.platform.saveFile(
+  //         dialogTitle: 'Please select an output file:',
+  //         fileName: outputFileName,
+  //         bytes: fileBytes,
+  //       );
+
+  //       if (outputFile == null) {
+  //         // User canceled the picker
+  //         throw Exception("File save was canceled.");
+  //       }
+  //     } else {
+  //       // Handle API errors (e.g., 401 Unauthorized, 502 Bad Gateway)
+  //       final errorBody = jsonDecode(response.body);
+  //       throw Exception(errorBody['error'] ?? 'Failed to generate installer.');
+  //     }
+  //   } catch (e) {
+  //     // Rethrow the exception to be handled by the UI
+  //     rethrow;
+  //   }
+  // }
+
   Future<void> generateAndDownloadInstaller({
     required String apiKey,
     required String ownerAdminId,
   }) async {
     String? accessToken = await _storage.read(key: 'access_token');
-    if (accessToken == null) {
-      throw Exception("Access token not found. Please log in.");
-    }
 
-    // The endpoint of your Django class-based view
     final url = Uri.parse('$_baseUrl/generate-installer/');
 
     try {
-      // 1. Send the POST request with the server's API key
+      debugPrint("1. Making HTTP request to $url...");
       final response = await http.post(
         url,
         headers: {
@@ -457,39 +468,53 @@ class ApiService {
         body: jsonEncode({'api_key': apiKey, 'owner_admin_id': ownerAdminId}),
       );
 
-      // 2. Check for a successful response (200 OK)
       if (response.statusCode == 200) {
-        // 3. Get the filename from the 'Content-Disposition' header
-        String? disposition = response.headers['content-disposition'];
-        String outputFileName = 'Bluck-Security-Setup.exe'; // Default name
-        if (disposition != null) {
-          final match = RegExp(r'filename="([^"]+)"').firstMatch(disposition);
-          if (match != null) {
-            outputFileName = match.group(1)!;
-          }
-        }
-
-        // 4. Get the file data as a list of bytes
         final Uint8List fileBytes = response.bodyBytes;
-
-        // 5. Use file_picker to open a "Save As..." dialog
-        String? outputFile = await FilePicker.platform.saveFile(
-          dialogTitle: 'Please select an output file:',
-          fileName: outputFileName,
-          bytes: fileBytes,
+        debugPrint(
+          "2. Received response successfully. File size: ${fileBytes.length} bytes.",
         );
 
-        if (outputFile == null) {
-          // User canceled the picker
-          throw Exception("File save was canceled.");
+        if (fileBytes.isEmpty)
+          throw Exception("Received empty file from server.");
+
+        String? disposition = response.headers['content-disposition'];
+        String outputFileName = 'Bluck-Security-Setup.exe';
+        final match = RegExp(r'filename="([^"]+)"').firstMatch(disposition!);
+        if (match != null) {
+          outputFileName = match.group(1)!;
         }
+
+        debugPrint("3. Showing 'Select Folder' dialog to user.");
+
+        // --- THIS IS THE CORRECTED LOGIC ---
+        // STEP 1: Get the directory path ONLY.
+        String? outputDir = await FilePicker.platform.getDirectoryPath(
+          dialogTitle: 'Please select a folder to save the installer:',
+        );
+
+        // STEP 2: Manually create the full path by joining the directory and filename.
+        final String outputPath = p.join(outputDir!, outputFileName);
+        debugPrint("4. User selected path: $outputPath");
+
+        try {
+          debugPrint("5. Attempting to write file to disk...");
+          // STEP 3: Manually create the File object and write the bytes.
+          final File file = File(outputPath);
+          await file.writeAsBytes(fileBytes);
+          debugPrint("6. ✅ File write successful!");
+        } catch (e) {
+          debugPrint(
+            "❌ CRITICAL ERROR: Failed to write file to disk. Error: $e",
+          );
+          throw Exception("Failed to save file to disk. Check permissions.");
+        }
+        // --- END OF CORRECTED LOGIC ---
       } else {
-        // Handle API errors (e.g., 401 Unauthorized, 502 Bad Gateway)
         final errorBody = jsonDecode(response.body);
         throw Exception(errorBody['error'] ?? 'Failed to generate installer.');
       }
     } catch (e) {
-      // Rethrow the exception to be handled by the UI
+      debugPrint("❌ An error occurred in the process: $e");
       rethrow;
     }
   }
