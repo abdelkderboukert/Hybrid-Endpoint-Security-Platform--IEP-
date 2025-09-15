@@ -8,7 +8,7 @@
 ###
 
 # -- Variables --
-@baseUrl = http://127.0.0.1:8000
+@baseUrl = http://192.168.1.116:8000
 @username = local_admin_2
 @password = password123
 @accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU3OTI0NDg1LCJpYXQiOjE3NTc5MjI5ODUsImp0aSI6IjFkMDQ4ZDZlOGRmMDQ3MDg5N2JhNjA4N2E5N2FmNGQ4IiwidXNlcl9pZCI6ImYzYTYzMzk5LWFlMmQtNDcwYS1hOTNjLTk4ZjE3Yjc2MjljMCIsInVzZXJuYW1lIjoibG9jYWxfYWRtaW5fMiIsImVtYWlsIjoibG9jYWxfYWRtaW5fMkBleGFtcGxlLmNvbSJ9.3hN2CfchehvG_R5MOADSZTvTff_302kJl1blhQHhhbs
