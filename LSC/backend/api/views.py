@@ -179,6 +179,8 @@ class ServerRegistrationView(generics.GenericAPIView):
         # --- NEW: Expect the admin's UUID (ID) from the LSC's .env file ---
         owner_admin_id = request.data.get('owner_admin_id')
 
+        print(request.data)
+
         if not token_from_client or not server_data or not owner_admin_id:
             return Response(
                 {"error": "Bootstrap token, server data, and owner_admin_id are required."},
@@ -887,7 +889,9 @@ class GenerateInstallerView(APIView):
         # 1. Get data from the frontend request
         try:
             data = json.loads(request.body)
-            api_key = data.get('api_key')
+            print(data)
+            api_key = data.get('api_key').strip("'")
+            print(data.get('api_key'))
             owner_admin_id = data.get('owner_admin_id')
             if not api_key or not owner_admin_id:
                 return JsonResponse({'error': 'API key and owner_admin_id are required.'}, status=400)
@@ -921,6 +925,8 @@ class GenerateInstallerView(APIView):
             'BOOTSTRAP_TOKEN': str(new_bootstrap_token),
             'OWNER_ADMIN_ID': owner_admin_id,
         }
+
+        print(owner_admin_id)
         
         external_url = 'http://127.0.0.1:8001/generate-installer'
 
