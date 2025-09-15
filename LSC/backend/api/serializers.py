@@ -18,6 +18,7 @@ MODEL_MAP = {
     'Group': Group,
 }
 
+
 class SyncItemSerializer(serializers.Serializer):
     model_name = serializers.CharField()
     data = serializers.JSONField()
@@ -234,9 +235,6 @@ class HierarchicalServerSerializer(serializers.ModelSerializer):
         """
         return obj.server_name or obj.hostname or str(obj.server_id)
     
-# api/serializers.py
-
-# ... (add with your other serializers)
 class BootstrapTokenSerializer(serializers.ModelSerializer):
     """
     Serializer for creating and displaying Bootstrap Tokens.
@@ -249,3 +247,19 @@ class BootstrapTokenSerializer(serializers.ModelSerializer):
         model = BootstrapToken
         fields = ['id', 'token', 'is_used', 'date_created', 'created_by']
         read_only_fields = ['id', 'token', 'is_used', 'date_created', 'created_by']
+
+
+class LicenseKeySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LicenseKey
+        fields = '__all__'
+
+
+SERIALIZER_MAP = {
+    'Admin': AdminProfileSerializer, # Or another appropriate admin serializer
+    'User': UserDetailSerializer,
+    'Device': DeviceSerializer,
+    'Server': ServerSerializer,
+    'Group': GroupSerializer,
+    'LicenseKey': LicenseKeySerializer,
+}

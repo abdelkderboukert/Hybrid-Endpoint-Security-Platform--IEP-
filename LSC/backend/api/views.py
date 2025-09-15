@@ -38,9 +38,11 @@ from .serializers import (
     DeviceSerializer,
     SyncItemSerializer,
     MODEL_MAP,
+    SERIALIZER_MAP,
     GroupSerializer,
     HierarchicalServerSerializer,
     BootstrapTokenSerializer,
+    LicenseKeySerializer,
 )
 from .util import SystemDetector
 
@@ -381,49 +383,90 @@ class MasterSyncAPIView(APIView):
                     })
         return processed_responses
 
+    # def process_sync_down(self, last_sync_timestamp, user):
+    #     sync_down_list = []
+        
+    #     # Case 1: First time sync, send all data
+    #     if not last_sync_timestamp:
+    #         for Model in MODEL_MAP.values():
+    #             if hasattr(Model, 'license'):
+    #                 queryset = Model.objects.filter(license=user.license, is_deleted=False)
+    #                 for instance in queryset:
+    #                     sync_down_list.append({
+    #                         'model_name': instance.__class__.__name__,
+    #                         'action': 'create',
+    #                         'data': Model.objects.filter(pk=instance.pk).values().first(),
+    #                     })
+    #         return sync_down_list
+        
+    #     # Case 2: Delta sync, send only modified data
+    #     try:
+    #         last_sync_dt = timezone.datetime.fromisoformat(last_sync_timestamp)
+    #     except ValueError:
+    #         return [] # Invalid timestamp, return empty list
+
+    #     for Model in MODEL_MAP.values():
+    #         if not hasattr(Model, 'last_modified'):
+    #             continue
+                
+    #         queryset = Model.objects.filter(last_modified__gt=last_sync_dt)
+    #         if hasattr(Model, 'license'):
+    #             queryset = queryset.filter(license=user.license)
+            
+    #         for instance in queryset:
+    #             item_data = {}
+    #             for field in instance._meta.fields:
+    #                 item_data[field.name] = getattr(instance, field.name)
+                
+    #             sync_down_list.append({
+    #                 'model_name': instance.__class__.__name__,
+    #                 'action': 'update', 
+    #                 'data': item_data,
+    #             })
+        
+    #     return sync_down_list
     def process_sync_down(self, last_sync_timestamp, user):
         sync_down_list = []
         
-        # Case 1: First time sync, send all data
-        if not last_sync_timestamp:
-            for Model in MODEL_MAP.values():
-                if hasattr(Model, 'license'):
-                    queryset = Model.objects.filter(license=user.license, is_deleted=False)
-                    for instance in queryset:
-                        sync_down_list.append({
-                            'model_name': instance.__class__.__name__,
-                            'action': 'create',
-                            'data': Model.objects.filter(pk=instance.pk).values().first(),
-                        })
-            return sync_down_list
-        
-        # Case 2: Delta sync, send only modified data
-        try:
-            last_sync_dt = timezone.datetime.fromisoformat(last_sync_timestamp)
-        except ValueError:
-            return [] # Invalid timestamp, return empty list
+        # Determine the queryset based on timestamp
+        queryset_filter = {}
+        if last_sync_timestamp:
+            try:
+                last_sync_dt = timezone.datetime.fromisoformat(last_sync_timestamp)
+                queryset_filter['last_modified__gt'] = last_sync_dt
+            except ValueError:
+                return [] # Invalid timestamp
 
-        for Model in MODEL_MAP.values():
+        for model_name, Model in MODEL_MAP.items():
             if not hasattr(Model, 'last_modified'):
                 continue
-                
-            queryset = Model.objects.filter(last_modified__gt=last_sync_dt)
+            
+            # Filter the queryset
+            queryset = Model.objects.filter(**queryset_filter)
             if hasattr(Model, 'license'):
                 queryset = queryset.filter(license=user.license)
             
+            # Get the correct serializer from our map
+            serializer_class = SERIALIZER_MAP.get(model_name)
+            if not serializer_class:
+                continue # Skip models without a defined serializer
+
             for instance in queryset:
-                item_data = {}
-                for field in instance._meta.fields:
-                    item_data[field.name] = getattr(instance, field.name)
+                # Use the serializer to convert the instance to data
+                serializer = serializer_class(instance)
                 
+                # Determine action (is_deleted for soft delete, or update)
+                action = 'delete' if getattr(instance, 'is_deleted', False) else 'update'
+                if not last_sync_timestamp:
+                    action = 'create' # If it's the first sync, everything is a 'create'
+
                 sync_down_list.append({
-                    'model_name': instance.__class__.__name__,
-                    'action': 'update', 
-                    'data': item_data,
+                    'model_name': model_name,
+                    'action': action,
+                    'data': serializer.data, # Use the serialized data
                 })
         
         return sync_down_list
-
 class AdminRegisterView(generics.CreateAPIView):
     queryset = Admin.objects.all()
     permission_classes = [permissions.AllowAny]
@@ -608,7 +651,6 @@ class UserViewSet(viewsets.ModelViewSet):
                 action="delete",
                 data={'id': str(instance.pk)}
             )
-
 class GroupViewSet(viewsets.ModelViewSet):
     serializer_class = GroupSerializer
     permission_classes = [IsAuthenticated, IsLicenseActive]
@@ -900,7 +942,7 @@ class GenerateInstallerView(APIView):
 
         # 2. Fetch the server data
         try:
-            server = Server.objects.get(api_key=api_key.strip("'"))
+            server = Server.objects.get(api_key=api_key.strip('""'))
         except Server.DoesNotExist:
             return JsonResponse({'error': 'Unauthorized: Invalid API key.'}, status=401)
         except Exception as e:
