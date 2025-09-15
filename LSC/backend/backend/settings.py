@@ -246,7 +246,8 @@ SECRET_KEY = 'django-insecure-(7x7n+k(&gxn6)_jt624i&u0#i1-5-9o3$*1b3u-q^_6rmlfk*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']  # Changed to allow all hosts
+
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -384,6 +385,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ]
 # To send cookies from the frontend
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True
 
 # --- Django REST Framework Configuration ---
 REST_FRAMEWORK = {
