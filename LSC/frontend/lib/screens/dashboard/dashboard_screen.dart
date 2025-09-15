@@ -83,7 +83,7 @@ class MyHomePageState extends State<MyHomePage> {
       }
     } catch (e) {
       if (!mounted) return; // Check if the widget is still in the tree
-
+      print("Error checking license status: $e");
 
       setState(() {
         _isLicenseActive = false;

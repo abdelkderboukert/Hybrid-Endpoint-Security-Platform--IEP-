@@ -1,8 +1,9 @@
-// import 'dart:io';
-// import 'dart:async';
-// import 'package:fluent_ui/fluent_ui.dart';
-// import 'package:path_provider/path_provider.dart';
-// import 'package:frontend/services/api_service.dart'; // Adjust if needed
+// // lib/UI/build_page.dart
+
+// import 'package:fluent_ui/fluent_ui.dart'; // Make sure this is imported
+// import 'package:frontend/services/api_service.dart';
+// import 'package:frontend/models/models.dart';
+// import 'package:frontend/main.dart';
 
 // class BuildPage extends StatefulWidget {
 //   const BuildPage({super.key});
@@ -14,1081 +15,636 @@
 // class _BuildPageState extends State<BuildPage> {
 //   final ApiService _apiService = ApiService();
 
-//   // Build state management
-//   bool _isBuilding = false;
-//   bool _isDownloading = false;
-//   String? _buildId;
-//   String? _message;
-//   String? _errorMessage;
-//   double _progress = 0.0;
-//   String _currentStage = '';
-//   Timer? _statusTimer;
+//   bool _isLoading = true;
+//   List<Admin> _admins = [];
+//   String? _selectedAdminId;
+//   String? _serverApiKey;
+//   String? _error;
 
-//   // Build stages for better UX
-//   final List<String> _buildStages = [
-//     'Updating settings',
-//     'Building backend',
-//     'Copying files',
-//     'Building Flutter app',
-//     'Creating installer',
-//     'Completed',
-//   ];
+//   static const String CREATE_NEW_ADMIN_VALUE = 'CREATE_NEW';
 
 //   @override
-//   void dispose() {
-//     _statusTimer?.cancel();
-//     super.dispose();
+//   void initState() {
+//     super.initState();
+//     _loadApiKey();
+//     _fetchAdmins();
 //   }
 
-//   /// Get device information (UUID and IP)
-//   Future<Map<String, String>> _getDeviceInfo() async {
-//     try {
-//       // Get BIOS UUID using Process.run to capture output
-//       final uuidResult = await Process.run('powershell', [
-//         '-Command',
-//         '(Get-WmiObject -Class Win32_ComputerSystemProduct).UUID',
-//       ]);
-
-//       String uuid = uuidResult.stdout.toString().trim();
-
-//       // Get local IPv4 address
-//       List<NetworkInterface> interfaces = await NetworkInterface.list(
-//         type: InternetAddressType.IPv4,
-//         includeLoopback: false,
-//       );
-
-//       String? ip;
-//       for (var interface in interfaces) {
-//         for (var addr in interface.addresses) {
-//           if (!addr.address.startsWith('169.254')) {
-//             // Skip link-local
-//             ip = addr.address;
-//             break;
-//           }
-//         }
-//         if (ip != null) break;
-//       }
-
-//       return {'uuid': uuid, 'ip': ip ?? '127.0.0.1'};
-//     } catch (e) {
-//       // Fallback values if detection fails
-//       return {'uuid': 'UNKNOWN-UUID', 'ip': '127.0.0.1'};
-//     }
+//   void _loadApiKey() {
+//     _serverApiKey = env['LSC_API_KEY'];
 //   }
 
-//   /// Start the build process
-//   Future<void> _startBuild() async {
+//   Future<void> _fetchAdmins() async {
+//     // ... (This method remains the same, as it sets an error string instead of showing a notification)
+//     if (!mounted) return;
 //     setState(() {
-//       _isBuilding = true;
-//       _message = null;
-//       _errorMessage = null;
-//       _progress = 0.0;
-//       _currentStage = 'Preparing build...';
+//       _isLoading = true;
+//       _error = null;
 //     });
-
 //     try {
-//       // Get system UUID and IP address
-//       final deviceInfo = await _getDeviceInfo();
-//       final parentServerId = deviceInfo['uuid']!;
-//       final parentServerIp = deviceInfo['ip']!;
-
+//       final adminList = await _apiService.fetchAdmins();
+//       if (!mounted) return;
 //       setState(() {
-//         _currentStage = 'Starting build process...';
-//         _progress = 0.1;
+//         _admins = adminList;
 //       });
-
-//       // Start the build
-//       final response = await _apiService.startBuild(
-//         parentServerId: parentServerId,
-//         parentServerIp: parentServerIp,
-//       );
-
-//       setState(() {
-//         _buildId = response.buildId;
-//         _message = response.message;
-//         _currentStage = 'Build started successfully';
-//         _progress = 0.2;
-//       });
-
-//       // Start monitoring build progress
-//       _startProgressMonitoring();
 //     } catch (e) {
+//       if (!mounted) return;
 //       setState(() {
-//         _isBuilding = false;
-//         _errorMessage = 'Failed to start build: $e';
-//         _currentStage = 'Build failed';
-//         _progress = 0.0;
+//         _error = 'Failed to load admins: ${e.toString()}';
+//       });
+//     } finally {
+//       if (!mounted) return;
+//       setState(() {
+//         _isLoading = false;
 //       });
 //     }
 //   }
 
-//   /// Monitor build progress with periodic status checks
-//   void _startProgressMonitoring() {
-//     if (_buildId == null) return;
+//   void _showCreateAdminDialog(BuildContext scaffoldContext) {
+//     final TextEditingController usernameController = TextEditingController();
 
-//     _statusTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
-//       try {
-//         final status = await _apiService.getBuildStatus(_buildId!);
-
-//         setState(() {
-//           _progress = status.progress / 100.0;
-//           _currentStage = status.message;
-
-//           // Update stage description based on progress
-//           if (status.progress < 20) {
-//             _currentStage = 'Updating settings...';
-//           } else if (status.progress < 40) {
-//             _currentStage = 'Building backend...';
-//           } else if (status.progress < 60) {
-//             _currentStage = 'Copying files...';
-//           } else if (status.progress < 80) {
-//             _currentStage = 'Building Flutter app...';
-//           } else if (status.progress < 100) {
-//             _currentStage = 'Creating installer...';
-//           } else {
-//             _currentStage = 'Build completed!';
-//           }
-
-//           if (status.status == 'completed') {
-//             _isBuilding = false;
-//             _message = 'Build completed successfully! Ready for download.';
-//             timer.cancel();
-//           } else if (status.status == 'failed') {
-//             _isBuilding = false;
-//             _errorMessage = 'Build failed: ${status.message}';
-//             timer.cancel();
-//           }
-//         });
-//       } catch (e) {
-//         setState(() {
-//           _isBuilding = false;
-//           _errorMessage = 'Error monitoring build: $e';
-//         });
-//         timer.cancel();
-//       }
-//     });
-//   }
-
-//   /// Download the build installer
-//   Future<void> _downloadBuild() async {
-//     if (_buildId == null || _isDownloading) return;
-
-//     setState(() {
-//       _isDownloading = true;
-//       _currentStage = 'Downloading installer...';
-//     });
-
-//     try {
-//       // Get downloads directory
-//       final directory = await getDownloadsDirectory();
-//       final timestamp = DateTime.now().millisecondsSinceEpoch;
-//       final fileName = 'Bluck_Security_$timestamp.exe';
-//       final filePath = '${directory?.path ?? ''}/$fileName';
-
-//       await _apiService.downloadBuild(_buildId!, filePath);
-
-//       setState(() {
-//         _isDownloading = false;
-//         _message = 'Downloaded successfully!\nLocation: $filePath';
-//         _currentStage = 'Download completed';
-//       });
-
-//       // Show success message
-//       _showSuccessDialog('Download Complete', 'Installer saved to:\n$filePath');
-//     } catch (e) {
-//       setState(() {
-//         _isDownloading = false;
-//         _errorMessage = 'Download failed: $e';
-//         _currentStage = 'Download failed';
-//       });
-//     }
-//   }
-
-//   /// Launch download in browser (alternative download method)
-//   Future<void> _launchDownload() async {
-//     if (_buildId == null) return;
-
-//     try {
-//       await _apiService.launchBuildDownload(_buildId!);
-//       setState(() {
-//         _message = 'Download started in your browser';
-//       });
-//     } catch (e) {
-//       setState(() {
-//         _errorMessage = 'Failed to launch download: $e';
-//       });
-//     }
-//   }
-
-//   /// Show success dialog
-//   void _showSuccessDialog(String title, String message) {
 //     showDialog(
 //       context: context,
-//       builder: (context) => ContentDialog(
-//         title: Text(title),
-//         content: Text(message),
-//         actions: [
-//           Button(
-//             child: const Text('OK'),
-//             onPressed: () => Navigator.pop(context),
+//       builder: (dialogContext) {
+//         return ContentDialog(
+//           // Use ContentDialog for a Fluent look
+//           title: const Text('Create New Admin'),
+//           content: TextBox(
+//             // Use TextBox instead of TextField
+//             controller: usernameController,
+//             placeholder: 'Enter username',
 //           ),
-//         ],
-//       ),
+//           actions: [
+//             Button(
+//               child: const Text('Cancel'),
+//               onPressed: () => Navigator.of(dialogContext).pop(),
+//             ),
+//             FilledButton(
+//               // Use FilledButton for the primary action
+//               child: const Text('Create'),
+//               onPressed: () async {
+//                 try {
+//                   final newAdmin = await _apiService.createAdmin({
+//                     'username': usernameController.text,
+//                   });
+//                   if (!mounted) return;
+//                   Navigator.of(dialogContext).pop();
+//                   await _fetchAdmins();
+//                   if (!mounted) return;
+//                   setState(() {
+//                     _selectedAdminId = newAdmin.adminId;
+//                   });
+//                 } catch (e) {
+//                   if (!mounted) return;
+//                   // FIX: Use displayInfoBar for the error message
+//                   displayInfoBar(
+//                     scaffoldContext,
+//                     builder: (context, close) {
+//                       return InfoBar(
+//                         title: const Text('Error'),
+//                         content: Text(
+//                           'Failed to create admin: ${e.toString()}',
+//                         ),
+//                         severity: InfoBarSeverity.error,
+//                         onClose: close,
+//                       );
+//                     },
+//                   );
+//                 }
+//               },
+//             ),
+//           ],
+//         );
+//       },
 //     );
 //   }
 
-//   /// Get progress color based on status
-//   Color _getProgressColor() {
-//     if (_errorMessage != null) return Colors.red;
-//     if (_progress >= 1.0) return Colors.green;
-//     return Colors.blue;
-//   }
-
-//   /// Get status icon
-//   Widget _getStatusIcon() {
-//     if (_errorMessage != null) {
-//       return Icon(FluentIcons.error_badge, color: Colors.red, size: 24);
-//     }
-//     if (_progress >= 1.0 && !_isBuilding) {
-//       return Icon(FluentIcons.completed_solid, color: Colors.green, size: 24);
-//     }
-//     if (_isBuilding || _isDownloading) {
-//       return const SizedBox(
-//         width: 24,
-//         height: 24,
-//         child: ProgressRing(strokeWidth: 2),
+//   void _handleDownload(BuildContext scaffoldContext) async {
+//     if (_serverApiKey == null || _selectedAdminId == null) {
+//       // FIX: Use displayInfoBar
+//       displayInfoBar(
+//         scaffoldContext,
+//         builder: (context, close) {
+//           return InfoBar(
+//             title: const Text('Missing Information'),
+//             content: const Text(
+//               'API Key must be loaded and an admin must be selected.',
+//             ),
+//             severity: InfoBarSeverity.warning,
+//             onClose: close,
+//           );
+//         },
 //       );
+//       return;
 //     }
-//     return Icon(FluentIcons.build_queue, color: Colors.grey, size: 24);
+
+//     setState(() {
+//       _isLoading = true;
+//     });
+
+//     try {
+//       await _apiService.generateAndDownloadInstaller(
+//         apiKey: _serverApiKey!,
+//         ownerAdminId: _selectedAdminId!,
+//       );
+
+//       if (!mounted) return;
+//       // FIX: Use displayInfoBar for the success message
+//       displayInfoBar(
+//         scaffoldContext,
+//         builder: (context, close) {
+//           return InfoBar(
+//             title: const Text('Success!'),
+//             content: const Text('File saved to your Downloads folder.'),
+//             severity: InfoBarSeverity.success,
+//             onClose: close,
+//           );
+//         },
+//       );
+//     } catch (e) {
+//       if (!mounted) return;
+//       // FIX: Use displayInfoBar for the error message
+//       displayInfoBar(
+//         scaffoldContext,
+//         builder: (context, close) {
+//           return InfoBar(
+//             title: const Text('Error'),
+//             content: Text('Download failed: ${e.toString()}'),
+//             severity: InfoBarSeverity.error,
+//             onClose: close,
+//           );
+//         },
+//       );
+//     } finally {
+//       if (!mounted) return;
+//       setState(() {
+//         _isLoading = false;
+//       });
+//     }
 //   }
 
 //   @override
 //   Widget build(BuildContext context) {
-//     return Padding(
-//       padding: const EdgeInsets.all(24.0),
-//       child: Column(
-//         crossAxisAlignment: CrossAxisAlignment.stretch,
-//         children: [
-//           // Header Card
-//           Card(
-//             child: Padding(
-//               padding: const EdgeInsets.all(20.0),
+//     // The main page structure remains the same
+//     return ScaffoldPage(
+//       // Use ScaffoldPage for Fluent UI
+//       header: const PageHeader(title: Text('Download Installer')),
+//       content: Builder(
+//         builder: (scaffoldContext) {
+//           if (_isLoading) {
+//             return const Center(child: ProgressRing()); // Use ProgressRing
+//           }
+//           if (_error != null) {
+//             return Center(
+//               child: Text(_error!, style: TextStyle(color: Colors.red)),
+//             );
+//           }
+//           return Center(
+//             child: SizedBox(
+//               // Constrain the width for better layout
+//               width: 400,
 //               child: Column(
-//                 crossAxisAlignment: CrossAxisAlignment.start,
-//                 children: [
-//                   Row(
-//                     children: [
-//                       Icon(
-//                         FluentIcons.build_queue,
-//                         size: 28,
-//                         color: Colors.blue,
-//                       ),
-//                       const SizedBox(width: 12),
-//                       Text(
-//                         'D-SEC Installer Builder',
-//                         style: FluentTheme.of(context).typography.titleLarge,
-//                       ),
-//                     ],
-//                   ),
-//                   const SizedBox(height: 8),
-//                   Text(
-//                     'Build a custom installer with your device configuration',
-//                     style: FluentTheme.of(context).typography.body,
-//                   ),
-//                 ],
-//               ),
-//             ),
-//           ),
-
-//           const SizedBox(height: 20),
-
-//           // Build Button
-//           SizedBox(
-//             height: 50,
-//             child: Button(
-//               onPressed: (_isBuilding || _isDownloading) ? null : _startBuild,
-//               child: Row(
 //                 mainAxisAlignment: MainAxisAlignment.center,
 //                 children: [
-//                   if (_isBuilding)
-//                     const SizedBox(
-//                       width: 20,
-//                       height: 20,
-//                       child: ProgressRing(strokeWidth: 2),
-//                     )
-//                   else
-//                     Icon(FluentIcons.build_queue),
-//                   const SizedBox(width: 8),
-//                   Text(_isBuilding ? 'Building...' : 'Start Build'),
-//                 ],
-//               ),
-//             ),
-//           ),
-
-//           const SizedBox(height: 24),
-
-//           // Progress Card (shown when building or completed)
-//           if (_isBuilding || _buildId != null) ...[
-//             Card(
-//               child: Padding(
-//                 padding: const EdgeInsets.all(20.0),
-//                 child: Column(
-//                   crossAxisAlignment: CrossAxisAlignment.start,
-//                   children: [
-//                     Row(
-//                       children: [
-//                         _getStatusIcon(),
-//                         const SizedBox(width: 12),
-//                         Text(
-//                           'Build Progress',
-//                           style: FluentTheme.of(context).typography.subtitle,
+//                   ComboBox<String>(
+//                     // Use ComboBox, the Fluent equivalent
+//                     value: _selectedAdminId,
+//                     placeholder: const Text('Select Owner Admin'),
+//                     isExpanded: true,
+//                     items: [
+//                       ComboBoxItem(
+//                         value: CREATE_NEW_ADMIN_VALUE,
+//                         child: Row(
+//                           children: [
+//                             const Icon(FluentIcons.add),
+//                             const SizedBox(width: 8),
+//                             Text(
+//                               'Create New Admin...',
+//                               style: TextStyle(
+//                                 color: Colors.blue,
+//                                 fontWeight: FontWeight.bold,
+//                               ),
+//                             ),
+//                           ],
 //                         ),
+//                       ),
+//                       if (_admins.isNotEmpty)
+//                         const ComboBoxItem(value: null, child: Divider()),
+//                       ..._admins.map((Admin admin) {
+//                         return ComboBoxItem<String>(
+//                           value: admin.adminId,
+//                           child: Text(admin.username!),
+//                         );
+//                       }).toList(),
+//                     ],
+//                     onChanged: (String? newValue) {
+//                       if (newValue == CREATE_NEW_ADMIN_VALUE) {
+//                         _showCreateAdminDialog(scaffoldContext);
+//                       } else {
+//                         setState(() {
+//                           _selectedAdminId = newValue;
+//                         });
+//                       }
+//                     },
+//                   ),
+//                   const SizedBox(height: 30),
+//                   FilledButton(
+//                     // Use FilledButton
+//                     child: const Row(
+//                       mainAxisAlignment: MainAxisAlignment.center,
+//                       children: [
+//                         Icon(FluentIcons.download),
+//                         SizedBox(width: 8),
+//                         Text('Generate & Download'),
 //                       ],
 //                     ),
-
-//                     const SizedBox(height: 16),
-
-//                     // Progress Bar
-//                     ProgressBar(
-//                       value: _progress * 100,
-//                       backgroundColor: Colors.grey.withOpacity(0.3),
-//                     ),
-
-//                     const SizedBox(height: 8),
-
-//                     Text(
-//                       '${(_progress * 100).toInt()}% Complete',
-//                       style: FluentTheme.of(context).typography.caption,
-//                     ),
-
-//                     const SizedBox(height: 16),
-
-//                     // Current Status
-//                     Text(
-//                       'Status: $_currentStage',
-//                       style: FluentTheme.of(context).typography.body,
-//                     ),
-
-//                     if (_buildId != null) ...[
-//                       const SizedBox(height: 8),
-//                       Text(
-//                         'Build ID: $_buildId',
-//                         style: FluentTheme.of(context).typography.caption,
-//                       ),
-//                     ],
-//                   ],
-//                 ),
-//               ),
-//             ),
-
-//             const SizedBox(height: 16),
-//           ],
-
-//           // Success/Error Messages
-//           if (_message != null) ...[
-//             InfoBar(
-//               title: const Text('Success'),
-//               content: Text(_message!),
-//               severity: InfoBarSeverity.success,
-//             ),
-//             const SizedBox(height: 16),
-//           ],
-
-//           if (_errorMessage != null) ...[
-//             InfoBar(
-//               title: const Text('Error'),
-//               content: Text(_errorMessage!),
-//               severity: InfoBarSeverity.error,
-//             ),
-//             const SizedBox(height: 16),
-//           ],
-
-//           // Download Buttons (shown when build is complete)
-//           if (_progress >= 1.0 && !_isBuilding && _buildId != null) ...[
-//             Row(
-//               children: [
-//                 Expanded(
-//                   child: SizedBox(
-//                     height: 50,
-//                     child: Button(
-//                       onPressed: _isDownloading ? null : _downloadBuild,
-//                       child: Row(
-//                         mainAxisAlignment: MainAxisAlignment.center,
-//                         children: [
-//                           if (_isDownloading)
-//                             const SizedBox(
-//                               width: 20,
-//                               height: 20,
-//                               child: ProgressRing(strokeWidth: 2),
-//                             )
-//                           else
-//                             Icon(FluentIcons.download),
-//                           const SizedBox(width: 8),
-//                           Text(
-//                             _isDownloading
-//                                 ? 'Downloading...'
-//                                 : 'Download to Device',
-//                           ),
-//                         ],
-//                       ),
-//                     ),
-//                   ),
-//                 ),
-//                 const SizedBox(width: 12),
-//                 Expanded(
-//                   child: SizedBox(
-//                     height: 50,
-//                     child: Button(
-//                       onPressed: _launchDownload,
-//                       child: Row(
-//                         mainAxisAlignment: MainAxisAlignment.center,
-//                         children: [
-//                           Icon(FluentIcons.globe),
-//                           const SizedBox(width: 8),
-//                           const Text('Open in Browser'),
-//                         ],
-//                       ),
-//                     ),
-//                   ),
-//                 ),
-//               ],
-//             ),
-//           ],
-
-//           const SizedBox(height: 10),
-
-//           // Build Information Card
-//           Card(
-//             child: Padding(
-//               padding: const EdgeInsets.all(16.0),
-//               child: Column(
-//                 crossAxisAlignment: CrossAxisAlignment.start,
-//                 children: [
-//                   Text(
-//                     'Build Information',
-//                     style: FluentTheme.of(context).typography.subtitle,
-//                   ),
-//                   const SizedBox(height: 12),
-//                   _buildInfoRow('Auto-detected Server ID', 'From system UUID'),
-//                   _buildInfoRow(
-//                     'Auto-detected Server IP',
-//                     'From network interface',
-//                   ),
-//                   _buildInfoRow(
-//                     'Build Service',
-//                     "http://127.0.0.1:5000", //'${_apiService._buildServiceUrl}',
-//                   ),
-//                   _buildInfoRow('Output Format', 'Bluck_Security.exe'),
-//                 ],
-//               ),
-//             ),
-//           ),
-
-//           // Instructions Card
-//           const SizedBox(height: 16),
-//           Card(
-//             child: Padding(
-//               padding: const EdgeInsets.all(16.0),
-//               child: Column(
-//                 crossAxisAlignment: CrossAxisAlignment.start,
-//                 children: [
-//                   Row(
-//                     children: [
-//                       Icon(FluentIcons.info, color: Colors.blue),
-//                       const SizedBox(width: 8),
-//                       Text(
-//                         'Instructions',
-//                         style: FluentTheme.of(context).typography.subtitle,
-//                       ),
-//                     ],
-//                   ),
-//                   const SizedBox(height: 12),
-//                   Text(
-//                     '1. Click "Start Build" to begin the automated build process\n'
-//                     '2. Monitor the real-time progress as the installer is created\n'
-//                     '3. Download the finished installer when build completes\n'
-//                     '4. The installer will be automatically configured for this device',
-//                     style: FluentTheme.of(context).typography.body,
+//                     onPressed: _selectedAdminId == null
+//                         ? null
+//                         : () => _handleDownload(scaffoldContext),
 //                   ),
 //                 ],
 //               ),
 //             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-
-//   /// Helper method to create info rows
-//   Widget _buildInfoRow(String label, String value) {
-//     return Padding(
-//       padding: const EdgeInsets.symmetric(vertical: 4.0),
-//       child: Row(
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: [
-//           SizedBox(
-//             width: 140,
-//             child: Text(
-//               '$label:',
-//               style: FluentTheme.of(context).typography.caption,
-//             ),
-//           ),
-//           Expanded(
-//             child: Text(value, style: FluentTheme.of(context).typography.body),
-//           ),
-//         ],
+//           );
+//         },
 //       ),
 //     );
 //   }
 // }
 
-import 'dart:io';
-import 'dart:async';
+// lib/UI/build_page.dart
+
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:frontend/services/api_service.dart'; // Adjust if needed
+import 'package:frontend/services/api_service.dart';
+import 'package:frontend/models/models.dart';
+import 'package:frontend/main.dart';
 
 class BuildPage extends StatefulWidget {
   const BuildPage({super.key});
 
   @override
-  _BuildPageState createState() => _BuildPageState();
+  BuildPageState createState() => BuildPageState();
 }
 
-class _BuildPageState extends State<BuildPage> {
+class BuildPageState extends State<BuildPage> {
   final ApiService _apiService = ApiService();
 
-  // Build state management
-  bool _isBuilding = false;
-  bool _isDownloading = false;
-  String? _buildId;
-  String? _message;
-  String? _errorMessage;
-  double _progress = 0.0;
-  String _currentStage = '';
-  Timer? _statusTimer;
+  bool _isLoading = true;
+  List<Admin> _admins = [];
+  Admin? _currentAdmin; // This state variable holds the current admin's profile
+  String? _selectedAdminId;
+  String? _serverApiKey;
+  String? _error;
 
-  // Build stages for better UX
-  final List<String> _buildStages = [
-    'Updating settings',
-    'Building backend',
-    'Copying files',
-    'Building Flutter app',
-    'Creating installer',
-    'Completed',
-  ];
+  static const String kCreateNewAdminValue = 'CREATE_NEW';
 
   @override
-  void dispose() {
-    _statusTimer?.cancel();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadInitialData();
   }
 
-  /// Get device information (UUID and IP)
-  Future<Map<String, String>> _getDeviceInfo() async {
+  Future<void> _loadInitialData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
-      // Get BIOS UUID using Process.run to capture output
-      final uuidResult = await Process.run('powershell', [
-        '-Command',
-        '(Get-WmiObject -Class Win32_ComputerSystemProduct).UUID',
+      _serverApiKey = env['LSC_API_KEY'];
+
+      final results = await Future.wait([
+        _apiService.fetchAdmins(),
+        _apiService.getAdminProfile(),
       ]);
 
-      String uuid = uuidResult.stdout.toString().trim();
-
-      // Get local IPv4 address
-      List<NetworkInterface> interfaces = await NetworkInterface.list(
-        type: InternetAddressType.IPv4,
-        includeLoopback: false,
-      );
-
-      String? ip;
-      for (var interface in interfaces) {
-        for (var addr in interface.addresses) {
-          if (!addr.address.startsWith('169.254')) {
-            // Skip link-local
-            ip = addr.address;
-            break;
-          }
+      if (!mounted) return;
+      setState(() {
+        _admins = results[0] as List<Admin>;
+        _currentAdmin = results[1] as Admin?; // The profile is stored here
+        if (_currentAdmin == null) {
+          _error = "Could not load current admin's profile.";
         }
-        if (ip != null) break;
-      }
-
-      return {'uuid': uuid, 'ip': ip ?? '127.0.0.1'};
+      });
     } catch (e) {
-      // Fallback values if detection fails
-      return {'uuid': 'UNKNOWN-UUID', 'ip': '127.0.0.1'};
+      if (!mounted) return;
+      setState(() {
+        _error = 'Failed to load page data: ${e.toString()}';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  /// Start the build process
-  Future<void> _startBuild() async {
-    setState(() {
-      _isBuilding = true;
-      _message = null;
-      _errorMessage = null;
-      _progress = 0.0;
-      _currentStage = 'Preparing build...';
-    });
-
-    try {
-      // Get system UUID and IP address
-      final deviceInfo = await _getDeviceInfo();
-      final parentServerId = deviceInfo['uuid']!;
-      final parentServerIp = deviceInfo['ip']!;
-
-      setState(() {
-        _currentStage = 'Starting build process...';
-        _progress = 0.1;
-      });
-
-      // Start the build
-      final response = await _apiService.startBuild(
-        parentServerId: parentServerId,
-        parentServerIp: parentServerIp,
+  void _showCreateAdminDialog(BuildContext scaffoldContext) {
+    // --- THIS IS THE FIX ---
+    // Use the `_currentAdmin` state variable from this class, not from the ApiService.
+    if (_currentAdmin == null || _currentAdmin!.layer == null) {
+      displayInfoBar(
+        scaffoldContext,
+        builder: (context, close) => InfoBar(
+          title: const Text('Error'),
+          content: const Text("Could not determine the current admin's layer."),
+          severity: InfoBarSeverity.error,
+          onClose: close,
+        ),
       );
-
-      setState(() {
-        _buildId = response.buildId;
-        _message = response.message;
-        _currentStage = 'Build started successfully';
-        _progress = 0.2;
-      });
-
-      // Start monitoring build progress
-      _startProgressMonitoring();
-    } catch (e) {
-      setState(() {
-        _isBuilding = false;
-        _errorMessage = 'Failed to start build: $e';
-        _currentStage = 'Build failed';
-        _progress = 0.0;
-      });
+      return;
     }
-  }
 
-  /// Monitor build progress with periodic status checks
-  void _startProgressMonitoring() {
-    if (_buildId == null) return;
+    final int newAdminLayer = _currentAdmin!.layer! + 1;
+    // --- END OF FIX ---
 
-    _statusTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
-      try {
-        final status = await _apiService.getBuildStatus(_buildId!);
+    final usernameController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
 
-        setState(() {
-          _progress = status.progress / 100.0;
-          _currentStage = status.message;
-
-          // Update stage description based on progress
-          if (status.progress < 20) {
-            _currentStage = 'Updating settings...';
-          } else if (status.progress < 40) {
-            _currentStage = 'Building backend...';
-          } else if (status.progress < 60) {
-            _currentStage = 'Copying files...';
-          } else if (status.progress < 80) {
-            _currentStage = 'Building Flutter app...';
-          } else if (status.progress < 100) {
-            _currentStage = 'Creating installer...';
-          } else {
-            _currentStage = 'Build completed!';
-          }
-
-          if (status.status == 'completed') {
-            _isBuilding = false;
-            _message = 'Build completed successfully! Ready for download.';
-            timer.cancel();
-          } else if (status.status == 'failed') {
-            _isBuilding = false;
-            _errorMessage = 'Build failed: ${status.message}';
-            timer.cancel();
-          }
-        });
-      } catch (e) {
-        setState(() {
-          _isBuilding = false;
-          _errorMessage = 'Error monitoring build: $e';
-        });
-        timer.cancel();
-      }
-    });
-  }
-
-  /// Download the build installer
-  Future<void> _downloadBuild() async {
-    if (_buildId == null || _isDownloading) return;
-
-    setState(() {
-      _isDownloading = true;
-      _currentStage = 'Downloading installer...';
-    });
-
-    try {
-      // Get downloads directory
-      final directory = await getDownloadsDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'Bluck_Security_$timestamp.exe';
-      final filePath = '${directory?.path ?? ''}/$fileName';
-
-      await _apiService.downloadBuild(_buildId!, filePath);
-
-      setState(() {
-        _isDownloading = false;
-        _message = 'Downloaded successfully!\nLocation: $filePath';
-        _currentStage = 'Download completed';
-      });
-
-      // Show success message
-      _showSuccessDialog('Download Complete', 'Installer saved to:\n$filePath');
-    } catch (e) {
-      setState(() {
-        _isDownloading = false;
-        _errorMessage = 'Download failed: $e';
-        _currentStage = 'Download failed';
-      });
-    }
-  }
-
-  /// Launch download in browser (alternative download method)
-  Future<void> _launchDownload() async {
-    if (_buildId == null) return;
-
-    try {
-      await _apiService.launchBuildDownload(_buildId!);
-      setState(() {
-        _message = 'Download started in your browser';
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to launch download: $e';
-      });
-    }
-  }
-
-  /// Show success dialog
-  void _showSuccessDialog(String title, String message) {
     showDialog(
       context: context,
-      builder: (context) => ContentDialog(
-        title: Text(title),
-        content: Text(message),
+      builder: (dialogContext) => ContentDialog(
+        constraints: const BoxConstraints(maxWidth: 400),
+        title: const Text('Create New Admin'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormBox(
+                controller: usernameController,
+                placeholder: 'Enter a unique username',
+                validator: (text) {
+                  if (text == null || text.isEmpty)
+                    return 'Username is required';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 10),
+              TextFormBox(
+                controller: emailController,
+                placeholder: 'Enter a valid email address',
+                validator: (text) {
+                  if (text == null || !text.contains('@'))
+                    return 'A valid email is required';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 10),
+              TextFormBox(
+                controller: passwordController,
+                placeholder: 'Enter a strong password',
+                obscureText: true,
+                validator: (text) {
+                  if (text == null || text.length < 8)
+                    return 'Password must be at least 8 characters';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 10),
+              TextFormBox(
+                controller: confirmPasswordController,
+                placeholder: 'Re-enter the password',
+                obscureText: true,
+                validator: (text) {
+                  if (text != passwordController.text)
+                    return 'Passwords do not match';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 10),
+              InfoLabel(
+                label: 'Admin Layer:',
+                child: Text(
+                  'This new admin will be created at Layer $newAdminLayer.',
+                  style: FluentTheme.of(context).typography.caption,
+                ),
+              ),
+            ],
+          ),
+        ),
         actions: [
           Button(
-            child: const Text('OK'),
-            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(),
+          ),
+          StatefulBuilder(
+            builder: (context, setDialogState) {
+              bool isCreating = false;
+              return FilledButton(
+                onPressed: isCreating
+                    ? null
+                    : () async {
+                        if (formKey.currentState?.validate() ?? false) {
+                          setDialogState(() => isCreating = true);
+                          try {
+                            final newAdmin = await _apiService.createAdmin({
+                              'username': usernameController.text,
+                              'email': emailController.text,
+                              'password': passwordController.text,
+                              'password2': confirmPasswordController.text,
+                              'layer': newAdminLayer,
+                            });
+                            if (!mounted) return;
+                            Navigator.of(dialogContext).pop();
+                            await _loadInitialData();
+                            if (!mounted) return;
+                            setState(() => _selectedAdminId = newAdmin.adminId);
+                          } catch (e) {
+                            if (!mounted) return;
+                            displayInfoBar(
+                              scaffoldContext,
+                              builder: (context, close) => InfoBar(
+                                title: const Text('Error'),
+                                content: Text(
+                                  'Failed to create admin: ${e.toString()}',
+                                ),
+                                severity: InfoBarSeverity.error,
+                                onClose: close,
+                              ),
+                            );
+                          } finally {
+                            if (mounted) {
+                              setDialogState(() => isCreating = false);
+                            }
+                          }
+                        }
+                      },
+                child: isCreating
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: ProgressRing(strokeWidth: 2.0),
+                      )
+                    : const Text('Create'),
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  /// Get progress color based on status
-  Color _getProgressColor() {
-    if (_errorMessage != null) return Colors.red;
-    if (_progress >= 1.0) return Colors.green;
-    return Colors.blue;
-  }
-
-  /// Get status icon
-  Widget _getStatusIcon() {
-    if (_errorMessage != null) {
-      return Icon(FluentIcons.error_badge, color: Colors.red, size: 24);
-    }
-    if (_progress >= 1.0 && !_isBuilding) {
-      return Icon(FluentIcons.completed_solid, color: Colors.green, size: 24);
-    }
-    if (_isBuilding || _isDownloading) {
-      return const SizedBox(
-        width: 24,
-        height: 24,
-        child: ProgressRing(strokeWidth: 2),
+  void _handleDownload(BuildContext scaffoldContext) async {
+    if (_serverApiKey == null || _selectedAdminId == null) {
+      displayInfoBar(
+        scaffoldContext,
+        builder: (context, close) {
+          return InfoBar(
+            title: const Text('Missing Information'),
+            content: const Text(
+              'API Key must be loaded and an admin must be selected.',
+            ),
+            severity: InfoBarSeverity.warning,
+            onClose: close,
+          );
+        },
       );
+      return;
     }
-    return Icon(FluentIcons.build_queue, color: Colors.grey, size: 24);
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _apiService.generateAndDownloadInstaller(
+        apiKey: _serverApiKey!,
+        ownerAdminId: _selectedAdminId!,
+      );
+      if (!mounted) return;
+      displayInfoBar(
+        scaffoldContext,
+        builder: (context, close) => InfoBar(
+          title: const Text('Success!'),
+          content: const Text('File saved to your Downloads folder.'),
+          severity: InfoBarSeverity.success,
+          onClose: close,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      displayInfoBar(
+        scaffoldContext,
+        builder: (context, close) => InfoBar(
+          title: const Text('Error'),
+          content: Text('Download failed: ${e.toString()}'),
+          severity: InfoBarSeverity.error,
+          onClose: close,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    //
-    // **** THE ONLY CHANGE IS HERE ****
-    //
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+    return ScaffoldPage(
+      header: const PageHeader(title: Text('Generate Windows Installer')),
+      content: Builder(
+        builder: (scaffoldContext) {
+          if (_isLoading) {
+            return const Center(child: ProgressRing());
+          }
+          if (_error != null) {
+            return Center(
+              child: Text(_error!, style: TextStyle(color: Colors.red)),
+            );
+          }
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Center(
+                child: SizedBox(
+                  width: 450,
+                  child: Card(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          FluentIcons.build_queue,
-                          size: 28,
-                          color: Colors.blue,
-                        ),
-                        const SizedBox(width: 12),
                         Text(
-                          'D-SEC Installer Builder',
-                          style: FluentTheme.of(context).typography.titleLarge,
+                          'Configure Installer',
+                          style: FluentTheme.of(context).typography.title,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Build a custom installer with your device configuration',
-                      style: FluentTheme.of(context).typography.body,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Build Button
-            SizedBox(
-              height: 50,
-              child: Button(
-                onPressed: (_isBuilding || _isDownloading) ? null : _startBuild,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_isBuilding)
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: ProgressRing(strokeWidth: 2),
-                      )
-                    else
-                      Icon(FluentIcons.build_queue),
-                    const SizedBox(width: 8),
-                    Text(_isBuilding ? 'Building...' : 'Start Build'),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Progress Card (shown when building or completed)
-            if (_isBuilding || _buildId != null) ...[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          _getStatusIcon(),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Build Progress',
-                            style: FluentTheme.of(context).typography.subtitle,
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Progress Bar
-                      ProgressBar(
-                        value: (_progress * 100).clamp(0.0, 100.0),
-                        backgroundColor: Colors.grey.withOpacity(0.3),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      Text(
-                        '${(_progress * 100).toInt()}% Complete',
-                        style: FluentTheme.of(context).typography.caption,
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Current Status
-                      Text(
-                        'Status: $_currentStage',
-                        style: FluentTheme.of(context).typography.body,
-                      ),
-
-                      if (_buildId != null) ...[
                         const SizedBox(height: 8),
                         Text(
-                          'Build ID: $_buildId',
-                          style: FluentTheme.of(context).typography.caption,
+                          'Select an owner for this new server installation. You can also create a new admin directly from this screen.',
+                          style: FluentTheme.of(context).typography.body,
                         ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-            ],
-
-            // Success/Error Messages
-            if (_message != null) ...[
-              InfoBar(
-                title: const Text('Success'),
-                content: Text(_message!),
-                severity: InfoBarSeverity.success,
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            if (_errorMessage != null) ...[
-              InfoBar(
-                title: const Text('Error'),
-                content: Text(_errorMessage!),
-                severity: InfoBarSeverity.error,
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // Download Buttons (shown when build is complete)
-            if (_progress >= 1.0 && !_isBuilding && _buildId != null) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 50,
-                      child: Button(
-                        onPressed: _isDownloading ? null : _downloadBuild,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            if (_isDownloading)
-                              const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: ProgressRing(strokeWidth: 2),
-                              )
-                            else
-                              Icon(FluentIcons.download),
-                            const SizedBox(width: 8),
-                            Text(
-                              _isDownloading
-                                  ? 'Downloading...'
-                                  : 'Download to Device',
+                        const SizedBox(height: 24),
+                        ComboBox<String>(
+                          value: _selectedAdminId,
+                          placeholder: const Text('Select Owner Admin...'),
+                          isExpanded: true,
+                          items: [
+                            const ComboBoxItem(
+                              value: kCreateNewAdminValue,
+                              child: Row(
+                                children: [
+                                  Icon(FluentIcons.add),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Create New Admin...',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                            if (_admins.isNotEmpty)
+                              const ComboBoxItem(value: null, child: Divider()),
+                            ..._admins.map((Admin admin) {
+                              return ComboBoxItem<String>(
+                                value: admin.adminId,
+                                child: Text(admin.username!),
+                              );
+                            }),
                           ],
+                          onChanged: (String? newValue) {
+                            if (newValue == kCreateNewAdminValue) {
+                              _showCreateAdminDialog(scaffoldContext);
+                            } else if (newValue != null) {
+                              setState(() => _selectedAdminId = newValue);
+                            }
+                          },
                         ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 50,
-                      child: Button(
-                        onPressed: _launchDownload,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(FluentIcons.globe),
-                            const SizedBox(width: 8),
-                            const Text('Open in Browser'),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-
-            const SizedBox(height: 10),
-
-            // Build Information Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Build Information',
-                      style: FluentTheme.of(context).typography.subtitle,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildInfoRow(
-                      'Auto-detected Server ID',
-                      'From system UUID',
-                    ),
-                    _buildInfoRow(
-                      'Auto-detected Server IP',
-                      'From network interface',
-                    ),
-                    _buildInfoRow(
-                      'Build Service',
-                      "http://127.0.0.1:5000", //'${_apiService._buildServiceUrl}',
-                    ),
-                    _buildInfoRow('Output Format', 'Bluck_Security.exe'),
-                  ],
-                ),
-              ),
-            ),
-
-            // Instructions Card
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(FluentIcons.info, color: Colors.blue),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Instructions',
-                          style: FluentTheme.of(context).typography.subtitle,
+                        const SizedBox(height: 30),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed:
+                                (_selectedAdminId == null || _isLoading)
+                                ? null
+                                : () => _handleDownload(scaffoldContext),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: ProgressRing(strokeWidth: 2.5),
+                                  )
+                                : const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(FluentIcons.download),
+                                      SizedBox(width: 8),
+                                      Text('Generate & Download'),
+                                    ],
+                                  ),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '1. Click "Start Build" to begin the automated build process\n'
-                      '2. Monitor the real-time progress as the installer is created\n'
-                      '3. Download the finished installer when build completes\n'
-                      '4. The installer will be automatically configured for this device',
-                      style: FluentTheme.of(context).typography.body,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Helper method to create info rows
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(
-              '$label:',
-              style: FluentTheme.of(context).typography.caption,
-            ),
-          ),
-          Expanded(
-            child: Text(value, style: FluentTheme.of(context).typography.body),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

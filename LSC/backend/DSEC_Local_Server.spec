@@ -1,20 +1,23 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from PyInstaller.utils.hooks import collect_data_files
+
 block_cipher = None
 
+# Collect all of Django's required data files (like templates, translations)
+django_datas = collect_data_files('django')
 
 a = Analysis(
     ['run_server.py'],
     pathex=['C:\\Users\\HP\\rebo\\3LayersUntiVirus\\LSC\\backend'],
     binaries=[],
     datas=[
-    ('db.sqlite3', '.'),
-    # Add DRF templates
-    ('C:\\Users\\HP\\rebo\\3LayersUntiVirus\\LSC\\backend\\virt\\Lib\\site-packages\\rest_framework\\templates', 'rest_framework\\templates'),
-    # Add DRF static files
-    ('C:\\Users\\HP\\rebo\\3LayersUntiVirus\\LSC\\backend\\virt\\Lib\\site-packages\\rest_framework\\static', 'rest_framework\\static'),
+        # Manually include the Django REST Framework templates
+        ('C:\\Users\\HP\\rebo\\3LayersUntiVirus\\LSC\\backend\\virt\\Lib\\site-packages\\rest_framework\\templates', 'rest_framework/templates'),
+        *django_datas,
     ],
     hiddenimports=[
+        # Your Django apps and libraries from INSTALLED_APPS
         'django.contrib.admin',
         'django.contrib.auth',
         'django.contrib.contenttypes',
@@ -26,20 +29,27 @@ a = Analysis(
         'dj_rest_auth',
         'dj_rest_auth.registration',
         'rest_framework_simplejwt',
-        'rest_framework_simplejwt.token_blacklist', # For logout
+        'rest_framework_simplejwt.token_blacklist',
         'corsheaders',
         'api',
+        
+        # ✅ NEW: APScheduler and its dependencies
+        'django_apscheduler',
+        'apscheduler',
+        'apscheduler.schedulers.background',
+        'apscheduler.executors.pool',
+        'atexit',
 
-        'celery',
-        'celery.app',
-        'celery.fixups',
-        'celery.fixups.django', 
-        'celery.loaders',
-        'celery.loaders.app',
-        'celery.backends',
-        'celery.backends.database',
-        'celery.backends.rpc',
-        'celery.utils',
+        # Other critical packages used by your project
+        'psutil',
+        'waitress',
+        'decouple',
+        
+        # pywin32 modules used in util.py
+        'win32api',
+        'win32con',
+        'win32file',
+        'win32security', # Added for domain info detection
     ],
     hookspath=[],
     hooksconfig={},
@@ -54,26 +64,15 @@ pyz = PYZ(a.pure, a.zipped_data,
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='DSEC_Local_Server',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=True,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
+    console=True, # Important for seeing server logs
 )
-
-
 coll = COLLECT(
     exe,
     a.binaries,
@@ -81,9 +80,5 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=True,
-    upx_exclude=[],
     name='DSEC_Local_Server',
-    destdir=r'C:\Users\HP\rebo\3LayersUntiVirus\LSC\frontend\assets\backend'
 )
-
-

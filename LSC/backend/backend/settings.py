@@ -246,7 +246,8 @@ SECRET_KEY = 'django-insecure-(7x7n+k(&gxn6)_jt624i&u0#i1-5-9o3$*1b3u-q^_6rmlfk*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']  # Changed to allow all hosts
+
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -266,7 +267,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist', # For logout
     'corsheaders',
     'api',
-    'django_celery_beat'
+    'django_celery_beat',
+    'django_apscheduler',
     
 ]
 
@@ -275,6 +277,7 @@ AUTH_USER_MODEL = 'api.Admin'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # 'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # CORS middleware
     'django.middleware.common.CommonMiddleware',
@@ -364,6 +367,11 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# Add this list to tell Django where to look for your project-level static files
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -377,6 +385,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ]
 # To send cookies from the frontend
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True
 
 # --- Django REST Framework Configuration ---
 REST_FRAMEWORK = {
@@ -437,19 +446,19 @@ REST_AUTH = {
     'JWT_AUTH_REFRESH_COOKIE': 'refresh_token',
 }
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+# CELERY_BROKER_URL = 'redis://localhost:6379/0'
+# CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
 
-from celery.schedules import crontab
+# from celery.schedules import crontab
 
-CELERY_BEAT_SCHEDULE = {
-    'run-master-sync-every-15-minutes': {
-        'task': 'api.tasks.run_master_sync',  # The path to your task function
-        # 'schedule': crontab(minute='*/15'),   # Runs every 15 minutes
-        'schedule': crontab(minute='*/1'),   # Runs every 1 minute (for testing)
-    },
-}
+# CELERY_BEAT_SCHEDULE = {
+#     'run-master-sync-every-15-minutes': {
+#         'task': 'api.tasks.run_master_sync',  # The path to your task function
+#         # 'schedule': crontab(minute='*/15'),   # Runs every 15 minutes
+#         'schedule': crontab(minute='*/1'),   # Runs every 1 minute (for testing)
+#     },
+# }
 
 
 
@@ -463,6 +472,7 @@ FOLDER_NAME = f"{APP_NAME}_env"
 # os.environ.get('SystemDrive', 'C:') reliably gets the system drive letter.
 system_drive = os.environ.get('SystemDrive', 'C:')
 env_path = Path(f"{system_drive}\\") / FOLDER_NAME / '.env'
+ENV_PATH = env_path
 
 # Load the .env file if it exists
 if env_path.exists():
@@ -476,6 +486,8 @@ PARENT_SERVER_ID = os.getenv('PARENT_SERVER_ID')
 LSC_MAC_ADDRESS = os.getenv('LSC_MAC_ADDRESS')
 INITIAL_PARENT_IP = os.getenv('INITIAL_PARENT_IP')
 MCC_IP_ADDRESS = os.getenv('MCC_IP_ADDRESS')
-
+BOOTSTRAP_TOKEN = os.getenv('BOOTSTRAP_TOKEN')
+LSC_API_KEY = os.getenv('LSC_API_KEY')
+OWNER_ADMIN_ID = os.getenv('OWNER_ADMIN_ID')
 
 
