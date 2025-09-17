@@ -263,10 +263,12 @@ class MasterSyncAPIView(APIView):
         
         # 3. Process the Sync Up (client -> cloud)
         processed_responses_up = self.process_sync_up(sync_items_up, request.user, source_device_id)
-        
+        print("processed_responses_up:")
+        print(processed_responses_up)
         # 4. Process the Sync Down (cloud -> client)
         sync_down_items = self.process_sync_down(last_sync_timestamp, request.user)
-        
+        print("sync_down_items:")
+        print(sync_down_items)
         return Response({
             "sync_up_responses": processed_responses_up,
             "sync_down_items": sync_down_items,
@@ -465,7 +467,6 @@ class MasterSyncAPIView(APIView):
                     'action': action,
                     'data': serializer.data, # Use the serialized data
                 })
-        
         return sync_down_list
 class AdminRegisterView(generics.CreateAPIView):
     queryset = Admin.objects.all()
