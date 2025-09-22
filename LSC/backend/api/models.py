@@ -233,7 +233,7 @@ class DataIntegrityLog(SyncableModel):
 # 9. LicenseKey Model
 # ---
 
-class LicenseKey(models.Model):
+class LicenseKey(SyncableModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     key = models.CharField(max_length=255, unique=True)
     is_active = models.BooleanField(default=False)

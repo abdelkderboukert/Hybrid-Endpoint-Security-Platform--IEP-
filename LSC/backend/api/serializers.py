@@ -5,6 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 MODEL_MAP = {
+    'LicenseKey': LicenseKey,
     'Admin': Admin,
     'User': User,
     'Device': Device,
@@ -13,7 +14,6 @@ MODEL_MAP = {
     'Threat': Threat,
     'UserPhoto': UserPhoto,
     'DataIntegrityLog': DataIntegrityLog,
-    'LicenseKey': LicenseKey,
     'SyncLog': SyncLog,
     'Group': Group,
 }
@@ -254,9 +254,24 @@ class LicenseKeySerializer(serializers.ModelSerializer):
         model = LicenseKey
         fields = '__all__'
 
+class AdminSyncSerializer(serializers.ModelSerializer):
+    """
+    Serializer for synchronizing the full Admin object, including the password hash.
+    This is ONLY for the trusted, server-to-server sync process.
+    """
+    class Meta:
+        model = Admin
+        # This explicitly includes the hashed password field for syncing
+        fields = [
+            'admin_id', 'username', 'email', 'parent_admin_id', 'layer', 
+            'license', 'server', 'is_active', 'is_staff', 'is_superuser', 
+            'last_login', 'date_joined', 'password',  # The hash is included here
+            'last_modified', 'last_modified_by', 'source_device_id', 
+            'version', 'is_deleted'
+        ]
 
 SERIALIZER_MAP = {
-    'Admin': AdminProfileSerializer, # Or another appropriate admin serializer
+    'Admin': AdminSyncSerializer, # Or another appropriate admin serializer
     'User': UserDetailSerializer,
     'Device': DeviceSerializer,
     'Server': ServerSerializer,

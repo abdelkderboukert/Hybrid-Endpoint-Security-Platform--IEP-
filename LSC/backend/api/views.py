@@ -252,7 +252,6 @@ class MasterSyncAPIView(APIView):
     permission_classes = [IsAuthenticated,IsLicenseActive]
 
     def post(self, request, *args, **kwargs):
-        print(request.user)
         # 1. Log the request first
         SyncLog.objects.create(admin=request.user, request_data=request.data)
         
@@ -263,12 +262,15 @@ class MasterSyncAPIView(APIView):
         
         # 3. Process the Sync Up (client -> cloud)
         processed_responses_up = self.process_sync_up(sync_items_up, request.user, source_device_id)
-        print("processed_responses_up:")
-        print(processed_responses_up)
+        if request.user.username == "local_admin_3":
+            print(request.user)
+            print("processed_responses_up:")
+            print(processed_responses_up)
         # 4. Process the Sync Down (cloud -> client)
         sync_down_items = self.process_sync_down(last_sync_timestamp, request.user)
-        print("sync_down_items:")
-        print(sync_down_items)
+        if request.user.username =="local_admin_3":
+            print("sync_down_items:")
+            print(sync_down_items)
         return Response({
             "sync_up_responses": processed_responses_up,
             "sync_down_items": sync_down_items,
@@ -438,7 +440,7 @@ class MasterSyncAPIView(APIView):
                 queryset_filter['last_modified__gt'] = last_sync_dt
             except ValueError:
                 return [] # Invalid timestamp
-
+            
         for model_name, Model in MODEL_MAP.items():
             if not hasattr(Model, 'last_modified'):
                 continue
@@ -468,6 +470,8 @@ class MasterSyncAPIView(APIView):
                     'data': serializer.data, # Use the serialized data
                 })
         return sync_down_list
+    
+
 class AdminRegisterView(generics.CreateAPIView):
     queryset = Admin.objects.all()
     permission_classes = [permissions.AllowAny]
