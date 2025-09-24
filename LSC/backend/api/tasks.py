@@ -23,7 +23,6 @@ FOLDER_NAME = f"{APP_NAME}_env"
 system_drive = os.environ.get('SystemDrive', 'C:')
 ENV_FILE_PATH = Path(f"{system_drive}\\") / FOLDER_NAME / '.env'
 
-# --- Custom JSON Encoder just for this script ---
 class UUIDEncoder(json.JSONEncoder):
     """ Custom JSON encoder to handle UUIDs. """
     def default(self, obj):
@@ -84,24 +83,24 @@ def collect_local_changes(last_sync_timestamp):
     logger.info(f"Collected {len(sync_items_up)} local items to sync up.")
     return sync_items_up
 
-# api/tasks.py
-
 def apply_parent_changes(sync_down_items):
     """
-    Processes and applies changes received from the parent server,
-    correctly handling ForeignKey and ManyToManyField relationships using a two-pass approach.
+    Processes and applies changes from the parent server using a robust two-pass system.
+    Pass 1: Creates/updates all objects with their non-relational data and simple FKs.
+    Pass 2: Links complex relationships that were deferred.
     """
-    order = ['LicenseKey', 'Admin', 'Group', 'Server', 'User', 'Device']
-    sync_down_items.sort(key=lambda item: order.index(item['model_name']) if item['model_name'
-] in order else len(order))
-    
+    order = ['LicenseKey', 'Admin', 'Server', 'Group', 'User', 'Device']
+
+    sync_down_items.sort(key=lambda item: order.index(item['model_name']) if item['model_name'] in order else len(order))
+    # filtered_list = [item for item in sync_down_items if item['edmin'] != 'test']
     parent_server_id_str = os.getenv('PARENT_SERVER_ID')
     parent_server_id = uuid.UUID(parent_server_id_str) if parent_server_id_str else None
     
-    deferred_updates = []
+    deferred_relations_to_update = []
 
     with transaction.atomic():
-        # --- FIRST PASS: Create/update objects without complex FKs ---
+        # --- PASS 1: Create/Update all objects ---
+        logger.info("Starting Pass 1: Creating and updating individual records.")
         for item in sync_down_items:
             model_name = item.get('model_name')
             action = item.get('action')
@@ -120,81 +119,83 @@ def apply_parent_changes(sync_down_items):
                 continue
 
             try:
-                if action in ['create', 'update']:
-                    defaults_data = data.copy()
-                    m2m_data = {}
-                    
-                    deferred_fields = {}
-                    deferred_keys = ['parent_admin_id', 'parent_server']
-                    if model_name == 'Admin':
-                        deferred_keys.append('server')
-
-                    for key in deferred_keys:
-                        if key in defaults_data and defaults_data[key] is not None:
-                            deferred_fields[key] = defaults_data.pop(key)
-
-                    if deferred_fields:
-                        deferred_updates.append({
-                            'model': Model,
-                            'pk': record_id,
-                            'fields_to_update': deferred_fields
-                        })
-
-                    if pk_field_name in defaults_data:
-                        del defaults_data[pk_field_name]
-                    
-                    for field in Model._meta.get_fields():
-                        if isinstance(field, models.ForeignKey) and field.name in defaults_data:
-                            fk_value = defaults_data.pop(field.name)
-                            if fk_value:
-                                defaults_data[f"{field.name}_id"] = fk_value
-                        
-                        if isinstance(field, models.ManyToManyField) and field.name in defaults_data:
-                            m2m_data[field.name] = defaults_data.pop(field.name)
-
-                    instance, created = Model.objects.update_or_create(
-                        pk=record_id,
-                        defaults=defaults_data
-                    )
-
-                    if parent_server_id:
-                        instance.source_device_id = parent_server_id
-                        instance.save(update_fields=['source_device_id'])
-
-                    logger.info(f"Successfully {'created' if created else 'updated'} {model_name} record {record_id} (Pass 1).")
-
-                    if m2m_data:
-                        for field_name, value in m2m_data.items():
-                            manager = getattr(instance, field_name)
-                            manager.set(value)
-                            logger.info(f"Successfully set M2M relation '{field_name}' for {model_name} {record_id}.")
-                
-                # <-- BUG FIX: Moved delete action inside the try block -->
-                elif action == 'delete':
-                    Model.objects.filter(pk=record_id).update(is_deleted=True)
+                if action == 'delete':
+                    Model.objects.filter(pk=record_id).update(is_deleted=True, last_modified_by=parent_server_id)
                     logger.info(f"Successfully marked {model_name} record {record_id} as deleted.")
+                    continue
+
+                # Prepare data, separating fields that must be deferred
+                defaults_data = {}
+                deferred_fields = {}
+                m2m_data = {}
+
+                # Define keys that are self-referencing or complex and MUST be deferred
+                defer_these_keys = ['parent_admin_id', 'parent_server']
+                
+                for key, value in data.items():
+                    if key in defer_these_keys and value is not None:
+                        deferred_fields[key] = value
+                        continue
+
+                    # This is the crucial change: handle ForeignKeys directly in Pass 1
+                    try:
+                        field = Model._meta.get_field(key)
+                        if isinstance(field, (models.ForeignKey, models.OneToOneField)):
+                            if value:
+                                defaults_data[f"{key}_id"] = value
+                        elif isinstance(field, models.ManyToManyField):
+                            if value:
+                                m2m_data[key] = value
+                        elif key != pk_field_name:
+                            defaults_data[key] = value
+                    except models.FieldDoesNotExist:
+                        # Handles cases where the key is not a direct model field
+                        defaults_data[key] = value
+
+                defaults_data['source_device_id'] = parent_server_id
+                
+                instance, created = Model.objects.update_or_create(
+                    pk=record_id,
+                    defaults=defaults_data
+                )
+                logger.info(f"Pass 1: Successfully {'created' if created else 'updated'} {model_name} {record_id}.")
+
+                # If there are deferred or M2M fields, add them for Pass 2
+                if deferred_fields or m2m_data:
+                    deferred_relations_to_update.append({
+                        'model': Model,
+                        'pk': record_id,
+                        'fk_fields': deferred_fields,
+                        'm2m_fields': m2m_data
+                    })
 
             except Exception as e:
-                logger.error(f"Failed to apply sync down for {model_name} record {record_id} in Pass 1. Data: {data}. Error: {e}")
+                logger.error(f"Failed during Pass 1 for {model_name} {record_id}. Error: {e}", exc_info=True)
                 raise
-        
-        # --- SECOND PASS: Apply the deferred relationships ---
-        logger.info(f"Starting Pass 2: Applying {len(deferred_updates)} deferred relationships.")
-        for update_job in deferred_updates:
-            try:
-                Model = update_job['model']
-                pk = update_job['pk']
-                fields = update_job['fields_to_update']
-                
-                update_data = {f"{k}_id": v for k, v in fields.items()}
-                
-                # <-- NEW: Added diagnostic logging -->
-                logger.info(f"Applying deferred update for {Model.__name__} {pk} with data: {update_data}")
 
-                Model.objects.filter(pk=pk).update(**update_data)
-                logger.info(f"Successfully applied parent links for {Model.__name__} {pk} (Pass 2).")
+        # --- PASS 2: Apply deferred ForeignKey and ManyToMany relationships ---
+        logger.info(f"Starting Pass 2: Applying {len(deferred_relations_to_update)} deferred relationships.")
+        for job in deferred_relations_to_update:
+            try:
+                Model = job['model']
+                pk = job['pk']
+                
+                # Handle deferred FKs
+                if job['fk_fields']:
+                    update_data = {f"{k}_id": v for k, v in job['fk_fields'].items()}
+                    Model.objects.filter(pk=pk).update(**update_data)
+                    logger.info(f"Pass 2: Applied FKs for {Model.__name__} {pk}.")
+                
+                # Handle M2M
+                if job['m2m_fields']:
+                    instance = Model.objects.get(pk=pk)
+                    for field_name, value_list in job['m2m_fields'].items():
+                        manager = getattr(instance, field_name)
+                        manager.set(value_list)
+                        logger.info(f"Pass 2: Applied M2M '{field_name}' for {Model.__name__} {pk}.")
+
             except Exception as e:
-                logger.error(f"Failed to apply deferred update for {update_job['model'].__name__} {update_job['pk']}. Data: {update_data}. Error: {e}")
+                logger.error(f"Failed during Pass 2 for {job['model'].__name__} {job['pk']}. Error: {e}", exc_info=True)
                 raise
 
 def perform_standard_sync(api_key: str, parent_ip: str, last_sync: str):
@@ -220,6 +221,8 @@ def perform_standard_sync(api_key: str, parent_ip: str, last_sync: str):
         response_data = response.json()
         sync_down_items = response_data.get('sync_down_items', [])
         new_timestamp = response_data.get('current_timestamp')
+
+
 
         logger.info(f"Received {len(sync_down_items)} items to sync down.")
         
