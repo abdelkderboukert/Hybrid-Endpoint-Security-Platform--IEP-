@@ -228,7 +228,7 @@ class MasterSyncAPIView(APIView):
         if request.user.username == "local_admin_3":
             print(request.user)
             print("processed_responses_up:")
-            print(processed_responses_up[1])
+            print(processed_responses_up)
         # 4. Process the Sync Down (cloud -> client)
         sync_down_items = self.process_sync_down(last_sync_timestamp, request.user)
         if request.user.username =="local_admin_3":

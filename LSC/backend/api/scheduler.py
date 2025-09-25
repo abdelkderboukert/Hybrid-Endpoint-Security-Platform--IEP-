@@ -19,7 +19,7 @@ def start():
     scheduler.add_job(
         run_master_sync, 
         'cron', 
-        minute='*/1', 
+        minute='*/2', 
         next_run_time=datetime.now() + timedelta(seconds=10),
         id='run_master_sync_job', 
         replace_existing=True
