@@ -126,10 +126,59 @@ class GroupSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['group_id','parent_admin_id']
 
+# class ServerSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Server
+#         fields = '__all__'
+
+# api/serializers.py
+
 class ServerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Server
-        fields = '__all__'
+        fields = [
+            'server_id',
+            'server_type',
+            'parent_server',
+            'is_connected',
+            'last_heartbeat',
+            'licence_key',
+            'server_name',
+            'hostname',
+            'domain',
+            'workgroup',
+            'api_key',
+            'os_name',
+            'os_version',
+            'os_architecture',
+            'os_build',
+            'cpu_info',
+            'total_ram_gb',
+            'available_storage_gb',
+            'ip_address',
+            'mac_address',
+            'network_interfaces',
+            'dns_servers',
+            'default_gateway',
+            'system_uuid',
+            'current_user',
+            'user_profile_path',
+            'is_admin_user',
+            'antivirus_status',
+            'firewall_status',
+            'last_boot_time',
+            'uptime_hours',
+            'owner_admin',
+            'auto_detected',
+            'detection_timestamp',
+            'last_info_update',
+            # SyncableModel fields
+            'last_modified',
+            'last_modified_by',
+            'source_device_id',
+            'version',
+            'is_deleted',
+        ]
 
 class DeviceSerializer(serializers.ModelSerializer):
     class Meta:
@@ -149,8 +198,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['user_id', 'username', 'email', 'parent_admin_id', 'groups','license']
-        read_only_fields = ['user_id', 'parent_admin_id']
+        fields = ['user_id', 'username', 'email', 'parent_admin_id', 'groups','license','source_device_id','parent_admin_id']
+        read_only_fields = ['user_id'],# 'parent_admin_id'
 
     def update(self, instance, validated_data):
         # Handle the many-to-many relationship for groups
