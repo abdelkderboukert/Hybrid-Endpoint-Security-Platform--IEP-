@@ -227,8 +227,8 @@ class MasterSyncAPIView(APIView):
         processed_responses_up = self.process_sync_up(sync_items_up, request.user, source_device_id)
         if request.user.username == "local_admin_3":
             print(request.user)
-            print("processed_responses_up:")
-            print(processed_responses_up)
+            # print("processed_responses_up:")
+            # print(processed_responses_up)
         # 4. Process the Sync Down (cloud -> client)
         sync_down_items = self.process_sync_down(last_sync_timestamp, request.user)
         if request.user.username =="local_admin_3":
@@ -382,6 +382,7 @@ class MasterSyncAPIView(APIView):
     #     return sync_down_list
     def process_sync_down(self, last_sync_timestamp, user):
         sync_down_list = []
+        print(last_sync_timestamp)
         
         # Determine the queryset based on timestamp
         queryset_filter = {}
