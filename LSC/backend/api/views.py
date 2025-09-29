@@ -95,8 +95,6 @@ def create_sync_item_and_log(user, model_name, action, data, temp_id=None):
     Creates a sync item payload and logs it for later synchronization.
     This function is called by all views that modify local data.
     """
-
-    
     try:
         # Ensure temp_id is a string, as JSONField may not handle UUIDs
         if isinstance(temp_id, uuid.UUID):
@@ -141,10 +139,7 @@ class ServerRegistrationView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         token_from_client = request.data.get('bootstrap_token')
         server_data = request.data.get('server_data')
-        # --- NEW: Expect the admin's UUID (ID) from the LSC's .env file ---
         owner_admin_id = request.data.get('owner_admin_id')
-
-        print(request.data)
 
         if not token_from_client or not server_data or not owner_admin_id:
             return Response(
@@ -157,11 +152,10 @@ class ServerRegistrationView(generics.GenericAPIView):
         except BootstrapToken.DoesNotExist:
             return Response({"error": "Invalid or already used bootstrap token."}, status=status.HTTP_403_FORBIDDEN)
 
-        # --- MODIFIED: Find the existing admin by their primary key (UUID) ---
         try:
             owner_admin = Admin.objects.get(
                 admin_id=owner_admin_id,
-                license=token.created_by.license  # Security check: must be in the same license
+                license=token.created_by.license
             )
         except Admin.DoesNotExist:
             return Response({"error": f"Admin with ID '{owner_admin_id}' not found or does not belong to the correct license."}, status=status.HTTP_404_NOT_FOUND)
@@ -173,7 +167,6 @@ class ServerRegistrationView(generics.GenericAPIView):
             token.is_used = True
             token.save()
             
-            # This logic remains the same: ensure correct hierarchy
             owner_admin.parent_admin_id = token.created_by
             owner_admin.layer = token.created_by.layer + 1
 
@@ -196,44 +189,33 @@ class ServerRegistrationView(generics.GenericAPIView):
         }, status=status.HTTP_201_CREATED)    
 
 class MasterSyncAPIView(APIView):
-    """
-    The main endpoint for bidirectional synchronization.
-    It handles both receiving changes (Sync Up) and sending new data (Sync Down).
-    """
-
     def get_authenticators(self):
-        """Dynamically choose authentication based on the provided token type."""
         auth_header = self.request.headers.get('Authorization', '')
         if auth_header.startswith('Bearer '):
             token = auth_header.split(' ')[1]
-            # API keys are short UUIDs. JWTs are very long.
             if len(token) < 100:
                 return [LscApiKeyAuthentication()]
         return [JWTAuthentication()]
     
-
     permission_classes = [IsAuthenticated,IsLicenseActive]
 
     def post(self, request, *args, **kwargs):
-        # 1. Log the request first
         SyncLog.objects.create(admin=request.user, request_data=request.data)
         
-        # 2. Extract data from the request
         sync_items_up = request.data.get('sync_items', [])
         last_sync_timestamp = request.data.get('last_sync_timestamp')
         source_device_id = request.data.get('source_device_id')
         
-        # 3. Process the Sync Up (client -> cloud)
         processed_responses_up = self.process_sync_up(sync_items_up, request.user, source_device_id)
         if request.user.username == "local_admin_3":
             print(request.user)
-            # print("processed_responses_up:")
-            # print(processed_responses_up)
-        # 4. Process the Sync Down (cloud -> client)
+            print("processed_responses_up:")
+            print(processed_responses_up)
         sync_down_items = self.process_sync_down(last_sync_timestamp, request.user)
-        if request.user.username =="local_admin_3":
-            print("sync_down_items:")
+        if request.user.username == "local_admin_3":
+            print("processed_responses_up:")
             print(sync_down_items)
+
         return Response({
             "sync_up_responses": processed_responses_up,
             "sync_down_items": sync_down_items,
@@ -259,7 +241,6 @@ class MasterSyncAPIView(APIView):
                 data = validated_data['data']
                 action = validated_data['action']
                 temp_id = validated_data.get('temp_id')
-                # This is now a datetime object, not a string
                 client_last_modified = validated_data.get('client_last_modified')
 
                 Model = MODEL_MAP.get(model_name)
@@ -272,23 +253,18 @@ class MasterSyncAPIView(APIView):
                 try:
                     pk_field_name = Model._meta.pk.name
                     record_id = data.get(pk_field_name)
-                    
-                    # Get the UUID of the server making the request
                     requesting_server_id = str(user.server.server_id) if user.server else None
                     
                     if action == 'update':
                         instance = Model.objects.get(pk=record_id)
                         
-                        # --- ROBUST ECHO CANCELLATION & LAST-WRITE-WINS ---
                         if str(instance.source_device_id) == requesting_server_id:
                             processed_responses.append({
-                                'id': str(record_id),
-                                'status': 'ignored_echo',
+                                'id': str(record_id), 'status': 'ignored_echo',
                                 'message': 'Update ignored as it originated from this server.'
                             })
                             continue
 
-                        # Correctly compare datetime objects without parsing again
                         if client_last_modified and client_last_modified > instance.last_modified:
                             serializer_class = get_serializer_class_for_model(Model)
                             serializer = serializer_class(instance, data=data, partial=True)
@@ -305,7 +281,6 @@ class MasterSyncAPIView(APIView):
                             processed_responses.append({'id': str(record_id), 'status': 'stale'})
                     
                     elif action == 'create':
-                        # ... (This part of your code is correct and remains the same) ...
                         serializer_class = get_serializer_class_for_model(Model)
                         serializer = serializer_class(data=data)
                         serializer.is_valid(raise_exception=True)
@@ -317,13 +292,11 @@ class MasterSyncAPIView(APIView):
                         new_instance.save()
                         
                         processed_responses.append({
-                            'temp_id': str(temp_id),
-                            'status': 'created',
+                            'temp_id': str(temp_id), 'status': 'created',
                             'permanent_id': str(new_instance.pk),
                         })
 
                     elif action == 'delete':
-                        # ... (This part of your code is correct and remains the same) ...
                         instance = Model.objects.get(pk=record_id)
                         instance.is_deleted = True
                         instance.last_modified_by = user.admin_id
@@ -338,91 +311,53 @@ class MasterSyncAPIView(APIView):
                 except Exception as e:
                     processed_responses.append({'id': record_id, 'status': 'error', 'message': str(e)})
         return processed_responses
-    # def process_sync_down(self, last_sync_timestamp, user):
-    #     sync_down_list = []
-        
-    #     # Case 1: First time sync, send all data
-    #     if not last_sync_timestamp:
-    #         for Model in MODEL_MAP.values():
-    #             if hasattr(Model, 'license'):
-    #                 queryset = Model.objects.filter(license=user.license, is_deleted=False)
-    #                 for instance in queryset:
-    #                     sync_down_list.append({
-    #                         'model_name': instance.__class__.__name__,
-    #                         'action': 'create',
-    #                         'data': Model.objects.filter(pk=instance.pk).values().first(),
-    #                     })
-    #         return sync_down_list
-        
-    #     # Case 2: Delta sync, send only modified data
-    #     try:
-    #         last_sync_dt = timezone.datetime.fromisoformat(last_sync_timestamp)
-    #     except ValueError:
-    #         return [] # Invalid timestamp, return empty list
-
-    #     for Model in MODEL_MAP.values():
-    #         if not hasattr(Model, 'last_modified'):
-    #             continue
-                
-    #         queryset = Model.objects.filter(last_modified__gt=last_sync_dt)
-    #         if hasattr(Model, 'license'):
-    #             queryset = queryset.filter(license=user.license)
-            
-    #         for instance in queryset:
-    #             item_data = {}
-    #             for field in instance._meta.fields:
-    #                 item_data[field.name] = getattr(instance, field.name)
-                
-    #             sync_down_list.append({
-    #                 'model_name': instance.__class__.__name__,
-    #                 'action': 'update', 
-    #                 'data': item_data,
-    #             })
-        
-    #     return sync_down_list
+    
     def process_sync_down(self, last_sync_timestamp, user):
         sync_down_list = []
-        print(last_sync_timestamp)
         
-        # Determine the queryset based on timestamp
         queryset_filter = {}
         if last_sync_timestamp:
             try:
                 last_sync_dt = timezone.datetime.fromisoformat(last_sync_timestamp)
                 queryset_filter['last_modified__gt'] = last_sync_dt
             except ValueError:
-                return [] # Invalid timestamp
+                return []
             
         for model_name, Model in MODEL_MAP.items():
             if not hasattr(Model, 'last_modified'):
                 continue
             
-            # Filter the queryset
             queryset = Model.objects.filter(**queryset_filter)
             if hasattr(Model, 'license'):
                 queryset = queryset.filter(license=user.license)
             
-            # Get the correct serializer from our map
+            # CRITICAL FIX: Add hierarchical filtering
+            # descendant_ids = get_descendant_admin_ids(user)
+            # if model_name in ['Admin', 'User', 'Group']:
+            #     queryset = queryset.filter(parent_admin_id__in=descendant_ids)
+            # elif model_name == 'Device':
+            #     accessible_servers = Server.objects.filter(owner_admin__in=descendant_ids)
+            #     queryset = queryset.filter(server__in=accessible_servers)
+            # elif model_name == 'Server':
+            #      queryset = queryset.filter(owner_admin__in=descendant_ids)
+
             serializer_class = SERIALIZER_MAP.get(model_name)
             if not serializer_class:
-                continue # Skip models without a defined serializer
+                continue
 
             for instance in queryset:
-                # Use the serializer to convert the instance to data
                 serializer = serializer_class(instance)
                 
-                # Determine action (is_deleted for soft delete, or update)
                 action = 'delete' if getattr(instance, 'is_deleted', False) else 'update'
                 if not last_sync_timestamp:
-                    action = 'create' # If it's the first sync, everything is a 'create'
+                    action = 'create'
 
                 sync_down_list.append({
                     'model_name': model_name,
                     'action': action,
-                    'data': serializer.data, # Use the serialized data
+                    'data': serializer.data,
                 })
         return sync_down_list
-    
 
 class AdminRegisterView(generics.CreateAPIView):
     queryset = Admin.objects.all()
@@ -465,7 +400,8 @@ class AdminProfileView(generics.RetrieveUpdateAPIView):
 
     def perform_update(self, serializer):
         with transaction.atomic():
-            instance = serializer.save()
+            # FIX: Manually set last_modified on local update
+            instance = serializer.save(last_modified=timezone.now())
             create_sync_item_and_log(
                 user=self.request.user,
                 model_name="Admin",
@@ -499,18 +435,21 @@ class LicenseKeyActivateView(generics.GenericAPIView):
             return Response({"error": "This license key has already been used."}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
+            now = timezone.now()
             license_obj.is_active = True
             license_obj.assigned_admin = admin
+            license_obj.last_modified = now  # FIX
             license_obj.save()
+            
             admin.license = license_obj
+            admin.last_modified = now # FIX
             admin.save()
             
-            # Log the license key creation/update for synchronization
             create_sync_item_and_log(
                 user=admin,
                 model_name="LicenseKey",
                 action="update",
-                data=LicenseKeyActivateSerializer(license_obj).data,
+                data=LicenseKeySerializer(license_obj).data,
                 temp_id=license_obj.pk
             )
         return Response({"message": "License activated successfully."}, status=status.HTTP_200_OK)
@@ -522,7 +461,11 @@ class SubAdminCreateView(generics.CreateAPIView):
     def perform_create(self, serializer):
         with transaction.atomic():
             creating_admin = self.request.user
-            instance = serializer.save(parent_admin_id=creating_admin, license=creating_admin.license)
+            instance = serializer.save(
+                parent_admin_id=creating_admin, 
+                license=creating_admin.license,
+                last_modified=timezone.now()  # FIX
+            )
             
             create_sync_item_and_log(
                 user=creating_admin,
@@ -539,7 +482,11 @@ class SubUserCreateView(generics.CreateAPIView):
     def perform_create(self, serializer):
         with transaction.atomic():
             creating_admin = self.request.user
-            instance = serializer.save(parent_admin_id=creating_admin, license=creating_admin.license)
+            instance = serializer.save(
+                parent_admin_id=creating_admin, 
+                license=creating_admin.license,
+                last_modified=timezone.now() # FIX
+            )
 
             full_data = self.get_serializer(instance).data
             
@@ -552,10 +499,7 @@ class SubUserCreateView(generics.CreateAPIView):
             )
             
             if not success:
-                # If the sync log fails, raise an exception to trigger a rollback
                 raise Exception(f"Failed to create sync log: {message}")
-
-        print("Transaction should be committed now.")
 
 class AdminViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AdminProfileSerializer
@@ -587,7 +531,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         with transaction.atomic():
-            instance = serializer.save()
+            instance = serializer.save(last_modified=timezone.now()) # FIX
             create_sync_item_and_log(
                 user=self.request.user,
                 model_name="User",
@@ -598,8 +542,8 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         with transaction.atomic():
-            # Soft delete the instance by setting is_deleted to True
             instance.is_deleted = True
+            instance.last_modified = timezone.now() # FIX
             instance.save()
             
             create_sync_item_and_log(
@@ -620,12 +564,15 @@ class GroupViewSet(viewsets.ModelViewSet):
         queryset = self.queryset.filter(license=user.license)
         network_admin_ids = get_descendant_admin_ids(user)
         return queryset.filter(parent_admin_id__in=network_admin_ids)
-        # return Group.objects.filter(license=user.license)
 
     def perform_create(self, serializer):
         with transaction.atomic():
             creating_admin = self.request.user
-            instance = serializer.save(parent_admin_id=creating_admin, license=creating_admin.license)
+            instance = serializer.save(
+                parent_admin_id=creating_admin, 
+                license=creating_admin.license,
+                last_modified=timezone.now() # FIX
+            )
             create_sync_item_and_log(
                 user=creating_admin,
                 model_name="Group",
@@ -636,7 +583,7 @@ class GroupViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         with transaction.atomic():
-            instance = serializer.save()
+            instance = serializer.save(last_modified=timezone.now()) # FIX
             create_sync_item_and_log(
                 user=self.request.user,
                 model_name="Group",
@@ -647,8 +594,8 @@ class GroupViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         with transaction.atomic():
-            # Soft delete the instance
             instance.is_deleted = True
+            instance.last_modified = timezone.now() # FIX
             instance.save()
             
             create_sync_item_and_log(
@@ -672,7 +619,7 @@ class ServerViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         with transaction.atomic():
-            instance = serializer.save()
+            instance = serializer.save(last_modified=timezone.now()) # FIX
             create_sync_item_and_log(
                 user=self.request.user,
                 model_name="Server",
@@ -683,7 +630,7 @@ class ServerViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         with transaction.atomic():
-            instance = serializer.save()
+            instance = serializer.save(last_modified=timezone.now()) # FIX
             create_sync_item_and_log(
                 user=self.request.user,
                 model_name="Server",
@@ -695,6 +642,7 @@ class ServerViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         with transaction.atomic():
             instance.is_deleted = True
+            instance.last_modified = timezone.now() # FIX
             instance.save()
             
             create_sync_item_and_log(
@@ -719,7 +667,7 @@ class DeviceViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         with transaction.atomic():
-            instance = serializer.save()
+            instance = serializer.save(last_modified=timezone.now()) # FIX
             create_sync_item_and_log(
                 user=self.request.user,
                 model_name="Device",
@@ -730,7 +678,7 @@ class DeviceViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         with transaction.atomic():
-            instance = serializer.save()
+            instance = serializer.save(last_modified=timezone.now()) # FIX
             create_sync_item_and_log(
                 user=self.request.user,
                 model_name="Device",
@@ -742,6 +690,7 @@ class DeviceViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         with transaction.atomic():
             instance.is_deleted = True
+            instance.last_modified = timezone.now() # FIX
             instance.save()
             
             create_sync_item_and_log(
@@ -794,7 +743,8 @@ class ServerDetectionAPIView(APIView):
                 with transaction.atomic():
                     serializer.save(
                         last_info_update=timezone.now(),
-                        auto_detected=True
+                        auto_detected=True,
+                        last_modified=timezone.now() # FIX
                     )
                     create_sync_item_and_log(
                         user=admin,
@@ -819,7 +769,8 @@ class ServerDetectionAPIView(APIView):
                         owner_admin=admin,
                         last_info_update=timezone.now(),
                         auto_detected=True,
-                        server_type='Local'
+                        server_type='Local',
+                        last_modified=timezone.now() # FIX
                     )
                     create_sync_item_and_log(
                         user=admin,
@@ -836,10 +787,6 @@ class ServerDetectionAPIView(APIView):
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
 class ServerHierarchyView(generics.ListAPIView):
-    """
-    An endpoint to return a hierarchical view of top-level servers 
-    and their associated devices (clients).
-    """
     serializer_class = HierarchicalServerSerializer
     permission_classes = [IsAuthenticated, IsLicenseActive]
 
@@ -848,7 +795,6 @@ class ServerHierarchyView(generics.ListAPIView):
         if not user.license:
             return Server.objects.none()
         
-        # Get all server IDs associated with the current user's license
         admins_in_license = Admin.objects.filter(license=user.license)
         server_ids_list = list(
             admins_in_license.filter(server__isnull=False)
@@ -856,48 +802,32 @@ class ServerHierarchyView(generics.ListAPIView):
                            .distinct()
         )
         
-        # Filter for servers that are part of the license AND are top-level (have no parent_server).
-        # The serializer will handle fetching the 'children' (devices) automatically.
         return Server.objects.filter(
             server_id__in=server_ids_list,
             parent_server__isnull=True
         ).prefetch_related('device_set')  
 
 class BootstrapTokenCreateView(generics.CreateAPIView):
-    """
-    An endpoint for authenticated admins to generate new Bootstrap Tokens.
-    """
     serializer_class = BootstrapTokenSerializer
     permission_classes = [IsAuthenticated, IsLicenseActive]
 
     def perform_create(self, serializer):
-        """
-        Automatically sets the 'created_by' field to the current logged-in admin.
-        """
         serializer.save(created_by=self.request.user)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class GenerateInstallerView(APIView):
-    """
-    Handles installer generation by first creating a new bootstrap token,
-    then proxying the request to an external service.
-    """
-    permission_classes = [IsAuthenticated, IsLicenseActive] # <-- Add permissions
+    permission_classes = [IsAuthenticated, IsLicenseActive]
 
     def post(self, request, *args, **kwargs):
-        # 1. Get data from the frontend request
         try:
             data = json.loads(request.body)
-            print(data)
             api_key = data.get('api_key').strip("'")
-            print(data.get('api_key'))
             owner_admin_id = data.get('owner_admin_id')
             if not api_key or not owner_admin_id:
                 return JsonResponse({'error': 'API key and owner_admin_id are required.'}, status=400)
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON in request body.'}, status=400)
 
-        # 2. Fetch the server data
         try:
             server = Server.objects.get(api_key=api_key.strip('""'))
         except Server.DoesNotExist:
@@ -905,18 +835,11 @@ class GenerateInstallerView(APIView):
         except Exception as e:
             return JsonResponse({'error': f'Invalid API key format: {e}'}, status=400)
 
-        # --- NEW LOGIC: CREATE BOOTSTRAP TOKEN ---
-        # 3. Create a new Bootstrap Token using the serializer
-        # This replicates the logic of your BootstrapTokenCreateView
-        token_serializer = BootstrapTokenSerializer(data={}) # Data is empty since it's auto-generated
+        token_serializer = BootstrapTokenSerializer(data={})
         token_serializer.is_valid(raise_exception=True)
-        # Save the token, associating it with the currently logged-in user
         token_instance = token_serializer.save(created_by=request.user)
         new_bootstrap_token = token_instance.token
-        print("token creates seccefuly")
-        # --- END OF NEW LOGIC ---
-
-        # 4. Build the payload for the external service
+        
         payload = {
             'LSC_MAC_ADDRESS': server.mac_address,
             'PARENT_SERVER_ID': str(server.server_id),
@@ -924,17 +847,13 @@ class GenerateInstallerView(APIView):
             'BOOTSTRAP_TOKEN': str(new_bootstrap_token),
             'OWNER_ADMIN_ID': owner_admin_id,
         }
-
-        print(owner_admin_id)
         
         external_url = 'http://127.0.0.1:8001/generate-installer'
 
         try:
-            # 5. Make the streaming request to the external service
             response = requests.post(external_url, json=payload, stream=True)
             response.raise_for_status()
 
-            # 6. Stream the response back to the client
             streaming_response = StreamingHttpResponse(
                 response.iter_content(chunk_size=8192),
                 content_type=response.headers.get('Content-Type'),
