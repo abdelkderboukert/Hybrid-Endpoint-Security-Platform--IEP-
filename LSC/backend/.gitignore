@@ -1,5 +1,5 @@
 virt/
-db.sqlite3/
+.db.sqlite3
 dist/
 bd*
 build/

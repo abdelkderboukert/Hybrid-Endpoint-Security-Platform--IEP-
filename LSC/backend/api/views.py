@@ -213,7 +213,7 @@ class MasterSyncAPIView(APIView):
             print(processed_responses_up)
         sync_down_items = self.process_sync_down(last_sync_timestamp, request.user)
         if request.user.username == "local_admin_3":
-            print("processed_responses_up:")
+            print("sync_down_items:")
             print(sync_down_items)
 
         return Response({
@@ -223,20 +223,112 @@ class MasterSyncAPIView(APIView):
             "message": "Synchronization completed successfully."
         }, status=status.HTTP_200_OK)
 
+    # def process_sync_up(self, sync_items, user, source_device_id):
+    #     processed_responses = []
+    #     with transaction.atomic():
+    #         for item in sync_items:
+    #             serializer = SyncItemSerializer(data=item)
+    #             if not serializer.is_valid():
+    #                 processed_responses.append({
+    #                     'temp_id': item.get('temp_id', None),
+    #                     'status': 'error',
+    #                     'errors': serializer.errors,
+    #                 })
+    #                 continue
+
+    #             validated_data = serializer.validated_data
+    #             model_name = validated_data['model_name']
+    #             data = validated_data['data']
+    #             action = validated_data['action']
+    #             temp_id = validated_data.get('temp_id')
+    #             client_last_modified = validated_data.get('client_last_modified')
+
+    #             Model = MODEL_MAP.get(model_name)
+    #             if not Model:
+    #                 processed_responses.append({
+    #                     'temp_id': temp_id, 'status': 'error', 'message': f"Model '{model_name}' not found."
+    #                 })
+    #                 continue
+                
+    #             try:
+    #                 pk_field_name = Model._meta.pk.name
+    #                 record_id = data.get(pk_field_name)
+    #                 requesting_server_id = str(user.server.server_id) if user.server else None
+                    
+    #                 if action == 'update':
+    #                     instance = Model.objects.get(pk=record_id)
+                        
+    #                     if str(instance.source_device_id) == requesting_server_id:
+    #                         processed_responses.append({
+    #                             'id': str(record_id), 'status': 'ignored_echo',
+    #                             'message': 'Update ignored as it originated from this server.'
+    #                         })
+    #                         continue
+
+    #                     if client_last_modified and client_last_modified > instance.last_modified:
+    #                         serializer_class = get_serializer_class_for_model(Model)
+    #                         serializer = serializer_class(instance, data=data, partial=True)
+    #                         serializer.is_valid(raise_exception=True)
+                            
+    #                         updated_instance = serializer.save()
+    #                         updated_instance.last_modified_by = user.admin_id
+    #                         updated_instance.source_device_id = requesting_server_id
+    #                         updated_instance.version += 1
+    #                         updated_instance.save()
+                            
+    #                         processed_responses.append({'id': str(updated_instance.pk), 'status': 'updated'})
+    #                     else:
+    #                         processed_responses.append({'id': str(record_id), 'status': 'stale'})
+                    
+    #                 elif action == 'create':
+    #                     serializer_class = get_serializer_class_for_model(Model)
+    #                     serializer = serializer_class(data=data)
+    #                     serializer.is_valid(raise_exception=True)
+    #                     new_instance = serializer.save()
+                        
+    #                     new_instance.last_modified_by = user.admin_id
+    #                     new_instance.source_device_id = requesting_server_id
+    #                     new_instance.version = 1
+    #                     new_instance.save()
+                        
+    #                     processed_responses.append({
+    #                         'temp_id': str(temp_id), 'status': 'created',
+    #                         'permanent_id': str(new_instance.pk),
+    #                     })
+
+    #                 elif action == 'delete':
+    #                     instance = Model.objects.get(pk=record_id)
+    #                     instance.is_deleted = True
+    #                     instance.last_modified_by = user.admin_id
+    #                     instance.source_device_id = requesting_server_id
+    #                     instance.version += 1
+    #                     instance.save()
+                        
+    #                     processed_responses.append({'id': str(record_id), 'status': 'deleted'})
+                
+    #             except Model.DoesNotExist:
+    #                  processed_responses.append({'id': record_id, 'status': 'not_found'})
+    #             except Exception as e:
+    #                 processed_responses.append({'id': record_id, 'status': 'error', 'message': str(e)})
+    #     return processed_responses
+
     def process_sync_up(self, sync_items, user, source_device_id):
         processed_responses = []
+        requesting_server_id = str(user.server.server_id) if user.server else None
+
         with transaction.atomic():
             for item in sync_items:
-                serializer = SyncItemSerializer(data=item)
-                if not serializer.is_valid():
+                # --- Step 1: Validate the incoming item structure first ---
+                sync_item_serializer = SyncItemSerializer(data=item)
+                if not sync_item_serializer.is_valid():
                     processed_responses.append({
                         'temp_id': item.get('temp_id', None),
                         'status': 'error',
-                        'errors': serializer.errors,
+                        'errors': sync_item_serializer.errors
                     })
                     continue
 
-                validated_data = serializer.validated_data
+                validated_data = sync_item_serializer.validated_data
                 model_name = validated_data['model_name']
                 data = validated_data['data']
                 action = validated_data['action']
@@ -245,71 +337,68 @@ class MasterSyncAPIView(APIView):
 
                 Model = MODEL_MAP.get(model_name)
                 if not Model:
-                    processed_responses.append({
-                        'temp_id': temp_id, 'status': 'error', 'message': f"Model '{model_name}' not found."
-                    })
+                    processed_responses.append({'temp_id': temp_id, 'status': 'error', 'message': f"Model '{model_name}' not found."})
                     continue
                 
                 try:
                     pk_field_name = Model._meta.pk.name
                     record_id = data.get(pk_field_name)
-                    requesting_server_id = str(user.server.server_id) if user.server else None
                     
-                    if action == 'update':
-                        instance = Model.objects.get(pk=record_id)
-                        
-                        if str(instance.source_device_id) == requesting_server_id:
-                            processed_responses.append({
-                                'id': str(record_id), 'status': 'ignored_echo',
-                                'message': 'Update ignored as it originated from this server.'
-                            })
-                            continue
+                    instance = None
+                    if record_id:
+                        instance = Model.objects.filter(pk=record_id).first()
 
-                        if client_last_modified and client_last_modified > instance.last_modified:
-                            serializer_class = get_serializer_class_for_model(Model)
-                            serializer = serializer_class(instance, data=data, partial=True)
-                            serializer.is_valid(raise_exception=True)
-                            
-                            updated_instance = serializer.save()
-                            updated_instance.last_modified_by = user.admin_id
-                            updated_instance.source_device_id = requesting_server_id
-                            updated_instance.version += 1
-                            updated_instance.save()
-                            
-                            processed_responses.append({'id': str(updated_instance.pk), 'status': 'updated'})
-                        else:
-                            processed_responses.append({'id': str(record_id), 'status': 'stale'})
+                    # --- Step 2: Handle Echo, Stale, and Update/Create logic ---
+                    if instance and str(instance.source_device_id) == requesting_server_id:
+                        processed_responses.append({'id': str(record_id), 'status': 'ignored_echo'})
+                        continue
+
+                    if instance and client_last_modified and client_last_modified <= instance.last_modified:
+                        processed_responses.append({'id': str(record_id), 'status': 'stale'})
+                        continue
+                        
+                    serializer_class = get_serializer_class_for_model(Model)
                     
-                    elif action == 'create':
-                        serializer_class = get_serializer_class_for_model(Model)
-                        serializer = serializer_class(data=data)
-                        serializer.is_valid(raise_exception=True)
-                        new_instance = serializer.save()
+                    # If an instance exists, it's an update.
+                    if instance:
+                        db_serializer = serializer_class(instance, data=data, partial=True)
+                        action = 'update' # Force action to 'update'
+                    # If no instance, it's a create.
+                    else:
+                        db_serializer = serializer_class(data=data)
+                        action = 'create'
+
+                    if db_serializer.is_valid():
+                        # Stamp the record with the ID of the server that sent it
+                        saved_instance = db_serializer.save(
+                            last_modified_by=user.admin_id,
+                            source_device_id=requesting_server_id,
+                            last_modified=timezone.now()
+                        )
                         
-                        new_instance.last_modified_by = user.admin_id
-                        new_instance.source_device_id = requesting_server_id
-                        new_instance.version = 1
-                        new_instance.save()
+                        if action == 'update':
+                            saved_instance.version += 1
+                            saved_instance.save()
                         
+                        response_payload = {'status': 'created' if action == 'create' else 'updated'}
+                        if action == 'create':
+                            response_payload['temp_id'] = temp_id
+                            response_payload['permanent_id'] = str(saved_instance.pk)
+                        else:
+                            response_payload['id'] = str(saved_instance.pk)
+                        processed_responses.append(response_payload)
+                        
+                    else:
                         processed_responses.append({
-                            'temp_id': str(temp_id), 'status': 'created',
-                            'permanent_id': str(new_instance.pk),
+                            'id': record_id or temp_id,
+                            'status': 'error',
+                            'message': json.dumps(db_serializer.errors)
                         })
 
-                    elif action == 'delete':
-                        instance = Model.objects.get(pk=record_id)
-                        instance.is_deleted = True
-                        instance.last_modified_by = user.admin_id
-                        instance.source_device_id = requesting_server_id
-                        instance.version += 1
-                        instance.save()
-                        
-                        processed_responses.append({'id': str(record_id), 'status': 'deleted'})
-                
-                except Model.DoesNotExist:
-                     processed_responses.append({'id': record_id, 'status': 'not_found'})
                 except Exception as e:
-                    processed_responses.append({'id': record_id, 'status': 'error', 'message': str(e)})
+                    logger.error(f"Error processing sync_up for {model_name}: {e}", exc_info=True)
+                    processed_responses.append({'id': record_id or temp_id, 'status': 'error', 'message': str(e)})
+                    
         return processed_responses
     
     def process_sync_down(self, last_sync_timestamp, user):

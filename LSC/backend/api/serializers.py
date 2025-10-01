@@ -124,7 +124,7 @@ class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = '__all__'
-        read_only_fields = ['group_id','parent_admin_id']
+        read_only_fields = ['group_id']
 
 class ServerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -184,34 +184,67 @@ class DeviceSerializer(serializers.ModelSerializer):
         model = Device
         fields = '__all__'
 
+# class UserDetailSerializer(serializers.ModelSerializer):
+#     """
+#     Serializer for retrieving and updating user details.
+#     Allows manipulation of the user's group memberships.
+#     """
+#     groups = serializers.PrimaryKeyRelatedField(
+#         many=True,
+#         queryset=Group.objects.all(),
+#         required=False  # Make this field optional for updates
+#     )
+    
+#     class Meta:
+#         model = User
+#         fields = ['user_id', 'username', 'email', 'parent_admin_id', 'groups','license','source_device_id']
+#         read_only_fields = ['user_id'] 
+
+#     def update(self, instance, validated_data):
+#         # Handle the many-to-many relationship for groups
+#         groups_data = validated_data.pop('groups', None)
+
+#         # Update the user's other fields
+#         instance = super().update(instance, validated_data)
+
+#         if groups_data is not None:
+#             instance.groups.set(groups_data)  # .set() method handles adding/removing groups
+        
+#         return instance
+
+
 class UserDetailSerializer(serializers.ModelSerializer):
     """
     Serializer for retrieving and updating user details.
-    Allows manipulation of the user's group memberships.
+    This version explicitly lists all fields to prevent the '__all__' bug.
     """
     groups = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Group.objects.all(),
-        required=False  # Make this field optional for updates
+        required=False
     )
     
     class Meta:
         model = User
-        fields = ['user_id', 'username', 'email', 'parent_admin_id', 'groups','license','source_device_id']
-        read_only_fields = ['user_id'] 
+        # Explicitly list all fields
+        fields = [
+            'user_id', 'username', 'email', 'parent_admin_id', 
+            'associated_device_ids', 'license', 'groups',
+            # SyncableModel fields
+            'last_modified', 'last_modified_by', 'source_device_id', 
+            'version', 'is_deleted'
+        ]
+        # read_only_fields = ['user_id']
 
     def update(self, instance, validated_data):
-        # Handle the many-to-many relationship for groups
+        # Your existing update logic here is correct and remains the same
         groups_data = validated_data.pop('groups', None)
-
-        # Update the user's other fields
         instance = super().update(instance, validated_data)
-
         if groups_data is not None:
-            instance.groups.set(groups_data)  # .set() method handles adding/removing groups
-        
+            instance.groups.set(groups_data)
         return instance
-
+    
+    
 class AdminProfileSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
