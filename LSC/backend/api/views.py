@@ -3,6 +3,7 @@
 from django.conf import settings
 from django.db import transaction, IntegrityError
 from django.db.models import Q
+from django.db import models
 from django.utils import timezone
 from rest_framework import generics, status, permissions, viewsets
 from rest_framework.permissions import IsAuthenticated
@@ -312,13 +313,105 @@ class MasterSyncAPIView(APIView):
     #                 processed_responses.append({'id': record_id, 'status': 'error', 'message': str(e)})
     #     return processed_responses
 
+    # def process_sync_up(self, sync_items, user, source_device_id):
+    #     processed_responses = []
+    #     requesting_server_id = str(user.server.server_id) if user.server else None
+
+    #     with transaction.atomic():
+    #         for item in sync_items:
+    #             # --- Step 1: Validate the incoming item structure first ---
+    #             sync_item_serializer = SyncItemSerializer(data=item)
+    #             if not sync_item_serializer.is_valid():
+    #                 processed_responses.append({
+    #                     'temp_id': item.get('temp_id', None),
+    #                     'status': 'error',
+    #                     'errors': sync_item_serializer.errors
+    #                 })
+    #                 continue
+
+    #             validated_data = sync_item_serializer.validated_data
+    #             model_name = validated_data['model_name']
+    #             data = validated_data['data']
+    #             action = validated_data['action']
+    #             temp_id = validated_data.get('temp_id')
+    #             client_last_modified = validated_data.get('client_last_modified')
+
+    #             Model = MODEL_MAP.get(model_name)
+    #             if not Model:
+    #                 processed_responses.append({'temp_id': temp_id, 'status': 'error', 'message': f"Model '{model_name}' not found."})
+    #                 continue
+                
+    #             try:
+    #                 pk_field_name = Model._meta.pk.name
+    #                 record_id = data.get(pk_field_name)
+                    
+    #                 instance = None
+    #                 if record_id:
+    #                     instance = Model.objects.filter(pk=record_id).first()
+
+    #                 # --- Step 2: Handle Echo, Stale, and Update/Create logic ---
+    #                 if instance and str(instance.source_device_id) == requesting_server_id:
+    #                     processed_responses.append({'id': str(record_id), 'status': 'ignored_echo'})
+    #                     continue
+
+    #                 if instance and client_last_modified and client_last_modified <= instance.last_modified:
+    #                     processed_responses.append({'id': str(record_id), 'status': 'stale'})
+    #                     continue
+                        
+    #                 serializer_class = get_serializer_class_for_model(Model)
+                    
+    #                 # If an instance exists, it's an update.
+    #                 if instance:
+    #                     db_serializer = serializer_class(instance, data=data, partial=True)
+    #                     action = 'update' # Force action to 'update'
+    #                 # If no instance, it's a create.
+    #                 else:
+    #                     db_serializer = serializer_class(data=data)
+    #                     action = 'create'
+
+    #                 if db_serializer.is_valid():
+    #                     # Stamp the record with the ID of the server that sent it
+    #                     saved_instance = db_serializer.save(
+    #                         last_modified_by=user.admin_id,
+    #                         source_device_id=requesting_server_id,
+    #                         last_modified=timezone.now()
+    #                     )
+                        
+    #                     if action == 'update':
+    #                         saved_instance.version += 1
+    #                         saved_instance.save()
+                        
+    #                     response_payload = {'status': 'created' if action == 'create' else 'updated'}
+    #                     if action == 'create':
+    #                         response_payload['temp_id'] = temp_id
+    #                         response_payload['permanent_id'] = str(saved_instance.pk)
+    #                     else:
+    #                         response_payload['id'] = str(saved_instance.pk)
+    #                     processed_responses.append(response_payload)
+                        
+    #                 else:
+    #                     processed_responses.append({
+    #                         'id': record_id or temp_id,
+    #                         'status': 'error',
+    #                         'message': json.dumps(db_serializer.errors)
+    #                     })
+
+    #             except Exception as e:
+    #                 logger.error(f"Error processing sync_up for {model_name}: {e}", exc_info=True)
+    #                 processed_responses.append({'id': record_id or temp_id, 'status': 'error', 'message': str(e)})
+                    
+    #     return processed_responses
+    
+
+    # api/views.py
+
     def process_sync_up(self, sync_items, user, source_device_id):
         processed_responses = []
         requesting_server_id = str(user.server.server_id) if user.server else None
 
         with transaction.atomic():
             for item in sync_items:
-                # --- Step 1: Validate the incoming item structure first ---
+                # --- Step 1: Validate the incoming item structure ---
                 sync_item_serializer = SyncItemSerializer(data=item)
                 if not sync_item_serializer.is_valid():
                     processed_responses.append({
@@ -332,72 +425,82 @@ class MasterSyncAPIView(APIView):
                 model_name = validated_data['model_name']
                 data = validated_data['data']
                 action = validated_data['action']
-                temp_id = validated_data.get('temp_id')
                 client_last_modified = validated_data.get('client_last_modified')
-
+                
                 Model = MODEL_MAP.get(model_name)
                 if not Model:
-                    processed_responses.append({'temp_id': temp_id, 'status': 'error', 'message': f"Model '{model_name}' not found."})
+                    processed_responses.append({'status': 'error', 'message': f"Model '{model_name}' not found."})
                     continue
                 
                 try:
                     pk_field_name = Model._meta.pk.name
                     record_id = data.get(pk_field_name)
-                    
-                    instance = None
-                    if record_id:
-                        instance = Model.objects.filter(pk=record_id).first()
 
-                    # --- Step 2: Handle Echo, Stale, and Update/Create logic ---
-                    if instance and str(instance.source_device_id) == requesting_server_id:
-                        processed_responses.append({'id': str(record_id), 'status': 'ignored_echo'})
+                    if not record_id:
+                        processed_responses.append({'status': 'error', 'message': f"Missing primary key for model {model_name}."})
                         continue
 
-                    if instance and client_last_modified and client_last_modified <= instance.last_modified:
-                        processed_responses.append({'id': str(record_id), 'status': 'stale'})
-                        continue
-                        
-                    serializer_class = get_serializer_class_for_model(Model)
+                    # --- Step 2: Separate Relational and Non-Relational Data ---
+                    non_relational_data = {}
+                    fk_ids = {}
+                    m2m_ids = {}
                     
-                    # If an instance exists, it's an update.
-                    if instance:
-                        db_serializer = serializer_class(instance, data=data, partial=True)
-                        action = 'update' # Force action to 'update'
-                    # If no instance, it's a create.
-                    else:
-                        db_serializer = serializer_class(data=data)
-                        action = 'create'
+                    for key, value in data.items():
+                        if key == pk_field_name: continue
+                        
+                        try:
+                            field = Model._meta.get_field(key)
+                            if isinstance(field, (models.ForeignKey, models.OneToOneField)):
+                                if value: fk_ids[f"{key}_id"] = value
+                            elif isinstance(field, models.ManyToManyField):
+                                if value: m2m_ids[key] = value
+                            else:
+                                non_relational_data[key] = value
+                        except models.FieldDoesNotExist:
+                            pass # Ignore fields not in the model (like 'password2')
+                    
+                    # --- Step 3: Intelligent Create/Update of the Base Object ---
+                    instance, created = Model.objects.get_or_create(
+                        pk=record_id,
+                        defaults=non_relational_data
+                    )
 
-                    if db_serializer.is_valid():
-                        # Stamp the record with the ID of the server that sent it
-                        saved_instance = db_serializer.save(
-                            last_modified_by=user.admin_id,
-                            source_device_id=requesting_server_id,
-                            last_modified=timezone.now()
-                        )
-                        
-                        if action == 'update':
-                            saved_instance.version += 1
-                            saved_instance.save()
-                        
-                        response_payload = {'status': 'created' if action == 'create' else 'updated'}
-                        if action == 'create':
-                            response_payload['temp_id'] = temp_id
-                            response_payload['permanent_id'] = str(saved_instance.pk)
-                        else:
-                            response_payload['id'] = str(saved_instance.pk)
-                        processed_responses.append(response_payload)
-                        
-                    else:
-                        processed_responses.append({
-                            'id': record_id or temp_id,
-                            'status': 'error',
-                            'message': json.dumps(db_serializer.errors)
-                        })
+                    # --- Step 4: Apply Relationships and Finalize ---
+                    # Combine all updates into one dictionary
+                    all_updates = {**fk_ids}
+                    
+                    # Stamp the record with metadata
+                    all_updates['last_modified_by'] = user.admin_id
+                    all_updates['source_device_id'] = requesting_server_id
+                    all_updates['last_modified'] = timezone.now()
+                    
+                    if not created: # If the object already existed
+                        # Update all non-relational fields
+                        for key, value in non_relational_data.items():
+                            setattr(instance, key, value)
+                        all_updates['version'] = instance.version + 1
+                    
+                    # Apply all FK updates in a single efficient query
+                    Model.objects.filter(pk=record_id).update(**all_updates)
 
+                    # Handle M2M relationships separately after the instance is saved
+                    if m2m_ids:
+                        instance.refresh_from_db() # Ensure we have the latest version
+                        for field_name, value_list in m2m_ids.items():
+                            manager = getattr(instance, field_name)
+                            manager.set(value_list)
+                    
+                    if created:
+                        processed_responses.append({'status': 'created', 'permanent_id': str(instance.pk)})
+                    else:
+                        processed_responses.append({'id': str(instance.pk), 'status': 'updated'})
+
+                except IntegrityError as e:
+                    logger.error(f"Integrity error on sync_up for {model_name} with ID {record_id}: {e}", exc_info=True)
+                    processed_responses.append({'id': record_id, 'status': 'error', 'message': f'IntegrityError: {e}'})
                 except Exception as e:
-                    logger.error(f"Error processing sync_up for {model_name}: {e}", exc_info=True)
-                    processed_responses.append({'id': record_id or temp_id, 'status': 'error', 'message': str(e)})
+                    logger.error(f"Error processing sync_up for {model_name} with ID {record_id}: {e}", exc_info=True)
+                    processed_responses.append({'id': record_id, 'status': 'error', 'message': str(e)})
                     
         return processed_responses
     
@@ -555,12 +658,12 @@ class SubAdminCreateView(generics.CreateAPIView):
                 license=creating_admin.license,
                 last_modified=timezone.now()  # FIX
             )
-            
+            full_data = self.get_serializer(instance).data
             create_sync_item_and_log(
                 user=creating_admin,
                 model_name="Admin",
                 action="create",
-                data=serializer.data,
+                data=full_data,
                 temp_id=instance.pk
             )
 
@@ -662,22 +765,24 @@ class GroupViewSet(viewsets.ModelViewSet):
                 license=creating_admin.license,
                 last_modified=timezone.now() # FIX
             )
+            full_data = self.get_serializer(instance).data
             create_sync_item_and_log(
                 user=creating_admin,
                 model_name="Group",
                 action="create",
-                data=serializer.data,
+                data=full_data,
                 temp_id=instance.pk
             )
 
     def perform_update(self, serializer):
         with transaction.atomic():
             instance = serializer.save(last_modified=timezone.now()) # FIX
+            full_data = self.get_serializer(instance).data
             create_sync_item_and_log(
                 user=self.request.user,
                 model_name="Group",
                 action="update",
-                data=serializer.data,
+                data=full_data,
                 temp_id=instance.pk
             )
 
@@ -709,22 +814,25 @@ class ServerViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         with transaction.atomic():
             instance = serializer.save(last_modified=timezone.now()) # FIX
+
+            full_data = self.get_serializer(instance).data
             create_sync_item_and_log(
                 user=self.request.user,
                 model_name="Server",
                 action="create",
-                data=serializer.data,
+                data=full_data,
                 temp_id=instance.pk
             )
 
     def perform_update(self, serializer):
         with transaction.atomic():
             instance = serializer.save(last_modified=timezone.now()) # FIX
+            full_data = self.get_serializer(instance).data
             create_sync_item_and_log(
                 user=self.request.user,
                 model_name="Server",
                 action="update",
-                data=serializer.data,
+                data=full_data,
                 temp_id=instance.pk
             )
 
@@ -757,22 +865,24 @@ class DeviceViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         with transaction.atomic():
             instance = serializer.save(last_modified=timezone.now()) # FIX
+            full_data = self.get_serializer(instance).data
             create_sync_item_and_log(
                 user=self.request.user,
                 model_name="Device",
                 action="create",
-                data=serializer.data,
+                data=full_data,
                 temp_id=instance.pk
             )
 
     def perform_update(self, serializer):
         with transaction.atomic():
             instance = serializer.save(last_modified=timezone.now()) # FIX
+            full_data = self.get_serializer(instance).data
             create_sync_item_and_log(
                 user=self.request.user,
                 model_name="Device",
                 action="update",
-                data=serializer.data,
+                data=full_data,
                 temp_id=instance.pk
             )
 
