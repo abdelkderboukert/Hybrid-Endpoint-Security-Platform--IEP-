@@ -82,7 +82,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/backend/
-    - assets/Public/
+    # - assets/Public/
     - assets/images/Bluck_securety.png
     - assets/images/
 

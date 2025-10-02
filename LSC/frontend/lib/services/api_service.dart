@@ -22,6 +22,13 @@ class ApiService {
 
   static const bool isDevelopment = false;
 
+  List<dynamic> _filterDeletedItems(List<dynamic> items) {
+  return items.where((item) {
+    final isDeleted = item['is_deleted'] == 1 || item['is_deleted'] == true;
+    return !isDeleted;
+  }).toList();
+}
+
   Future<bool> checkLicenseStatus() async {
     String? accessToken = await _storage.read(key: 'access_token');
 
@@ -138,7 +145,8 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
-      return data.map((json) => Admin.fromJson(json)).toList();
+      final filteredData = _filterDeletedItems(data);
+      return filteredData.map((json) => Admin.fromJson(json)).toList();
     } else {
       throw Exception('Failed to load groups: ${response.statusCode}');
     }
@@ -176,7 +184,8 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
-      return data.map((json) => Group.fromJson(json)).toList();
+      final filteredData = _filterDeletedItems(data);
+      return filteredData.map((json) => Group.fromJson(json)).toList();
     } else {
       throw Exception('Failed to load groups: ${response.statusCode}');
     }
@@ -192,9 +201,10 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
+      final filteredData = _filterDeletedItems(data);
 
       // Use .where() to filter the list
-      return data
+      return filteredData
           .where((userJson) {
             final groups = userJson['groups'];
             // Check if 'groups' is a List and if it contains the groupId
@@ -219,7 +229,8 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
-      final allUsers = data.map((json) => User.fromJson(json)).toList();
+      final filteredData = _filterDeletedItems(data);
+      final allUsers = filteredData.map((json) => User.fromJson(json)).toList();
       // Filter for users where the 'groups' list is empty or null
       return allUsers
           .where((user) => user.groups == null || user.groups!.isEmpty)
