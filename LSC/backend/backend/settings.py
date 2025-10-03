@@ -13,6 +13,11 @@
 # from pathlib import Path
 # from decouple import config
 # from datetime import timedelta
+<<<<<<< HEAD
+=======
+# import os
+# from dotenv import load_dotenv
+>>>>>>> develop
 
 # # Build paths inside the project like this: BASE_DIR / 'subdir'.
 # BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,7 +32,12 @@
 # # SECURITY WARNING: don't run with debug turned on in production!
 # DEBUG = True
 
+<<<<<<< HEAD
 # ALLOWED_HOSTS = []
+=======
+
+# ALLOWED_HOSTS = ['*']
+>>>>>>> develop
 
 
 # # Application definition
@@ -46,7 +56,14 @@
 #     'rest_framework_simplejwt',
 #     'rest_framework_simplejwt.token_blacklist', # For logout
 #     'corsheaders',
+<<<<<<< HEAD
 #     'api',  # Your custom app
+=======
+#     'api',
+#     'django_celery_beat',
+#     'django_apscheduler',
+    
+>>>>>>> develop
 # ]
 
 # # Tell Django to use your custom Admin model for authentication
@@ -54,6 +71,10 @@
 
 # MIDDLEWARE = [
 #     'django.middleware.security.SecurityMiddleware',
+<<<<<<< HEAD
+=======
+#     # 'whitenoise.middleware.WhiteNoiseMiddleware',
+>>>>>>> develop
 #     'django.contrib.sessions.middleware.SessionMiddleware',
 #     'corsheaders.middleware.CorsMiddleware',  # CORS middleware
 #     'django.middleware.common.CommonMiddleware',
@@ -105,6 +126,10 @@
 # # }
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> develop
 # # Password validation
 # # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -140,6 +165,15 @@
 # # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 # STATIC_URL = 'static/'
+<<<<<<< HEAD
+=======
+# STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# # Add this list to tell Django where to look for your project-level static files
+# STATICFILES_DIRS = [
+#     BASE_DIR / "static",
+# ]
+>>>>>>> develop
 
 # # Default primary key field type
 # # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -154,6 +188,10 @@
 # # ]
 # # To send cookies from the frontend
 # CORS_ALLOW_CREDENTIALS = True
+<<<<<<< HEAD
+=======
+# CORS_ALLOW_ALL_ORIGINS = True
+>>>>>>> develop
 
 # # --- Django REST Framework Configuration ---
 # REST_FRAMEWORK = {
@@ -167,7 +205,11 @@
 
 # SIMPLE_JWT = {
 #     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=25), # Short lifetime for access token
+<<<<<<< HEAD
 #     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),   # Longer lifetime for refresh token
+=======
+#     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),  # Longer lifetime for refresh token
+>>>>>>> develop
 #     'ROTATE_REFRESH_TOKENS': True, # A new refresh token is issued when you use a refresh token
 #     'BLACKLIST_AFTER_ROTATION': True, # Blacklists the old refresh token
 #     'UPDATE_LAST_LOGIN': True,
@@ -214,6 +256,55 @@
 #     'JWT_AUTH_REFRESH_COOKIE': 'refresh_token',
 # }
 
+<<<<<<< HEAD
+=======
+# # CELERY_BROKER_URL = 'redis://localhost:6379/0'
+# # CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
+
+# # from celery.schedules import crontab
+
+# # CELERY_BEAT_SCHEDULE = {
+# #     'run-master-sync-every-15-minutes': {
+# #         'task': 'api.tasks.run_master_sync',  # The path to your task function
+# #         # 'schedule': crontab(minute='*/15'),   # Runs every 15 minutes
+# #         'schedule': crontab(minute='*/1'),   # Runs every 1 minute (for testing)
+# #     },
+# # }
+
+
+
+# # --- WARNING: This method is not secure and requires the app to run as an administrator ---
+
+# # Define the app name exactly as it is in your Inno Setup script
+# APP_NAME = "Bluck D-ESC"
+# FOLDER_NAME = f"{APP_NAME}_env"
+
+# # Build the path to the root of the C: drive.
+# # os.environ.get('SystemDrive', 'C:') reliably gets the system drive letter.
+# system_drive = os.environ.get('SystemDrive', 'C:')
+# env_path = Path(f"{system_drive}\\") / FOLDER_NAME / '.env'
+# ENV_PATH = env_path
+
+# # Load the .env file if it exists
+# if env_path.exists():
+#     load_dotenv(dotenv_path=env_path)
+# else:
+#     # Optional: Handle the case where the .env file is missing
+#     print(f"WARNING: Environment file not found at {env_path}")
+
+# # Now you can access your variables
+# PARENT_SERVER_ID = os.getenv('PARENT_SERVER_ID')
+# LSC_MAC_ADDRESS = os.getenv('LSC_MAC_ADDRESS')
+# INITIAL_PARENT_IP = os.getenv('INITIAL_PARENT_IP')
+# MCC_IP_ADDRESS = os.getenv('MCC_IP_ADDRESS')
+# BOOTSTRAP_TOKEN = os.getenv('BOOTSTRAP_TOKEN')
+# LSC_API_KEY = os.getenv('LSC_API_KEY')
+# OWNER_ADMIN_ID = os.getenv('OWNER_ADMIN_ID')
+
+# CORS_ALLOW_ALL_ORIGINS = True
+
+>>>>>>> develop
 
 """
 Django settings for backend project.
@@ -267,7 +358,10 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist', # For logout
     'corsheaders',
     'api',
+<<<<<<< HEAD
     'django_celery_beat',
+=======
+>>>>>>> develop
     'django_apscheduler',
     
 ]
@@ -314,6 +408,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+<<<<<<< HEAD
+=======
+        'TIMEOUT': 20,
+>>>>>>> develop
     }
 }
 
@@ -350,7 +448,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 # Internationalization
+<<<<<<< HEAD
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
+=======
+# https://docs.djangoproject.com/en/5.2/topics/i1n/
+>>>>>>> develop
 
 LANGUAGE_CODE = 'en-us'
 
@@ -389,11 +491,24 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # --- Django REST Framework Configuration ---
 REST_FRAMEWORK = {
+<<<<<<< HEAD
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
 }
 
+=======
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'api.authentication.LscApiKeyAuthentication', # For LSC-to-LSC communication
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'api.renderers.CustomJSONRenderer', # Handles UUID serialization
+    ],
+}
+
+
+>>>>>>> develop
 # --- Simple JWT Configuration ---
 from datetime import timedelta
 
@@ -490,4 +605,8 @@ BOOTSTRAP_TOKEN = os.getenv('BOOTSTRAP_TOKEN')
 LSC_API_KEY = os.getenv('LSC_API_KEY')
 OWNER_ADMIN_ID = os.getenv('OWNER_ADMIN_ID')
 
+<<<<<<< HEAD
 
+=======
+CORS_ALLOW_ALL_ORIGINS = True
+>>>>>>> develop

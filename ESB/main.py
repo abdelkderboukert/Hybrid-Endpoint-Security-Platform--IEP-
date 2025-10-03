@@ -192,6 +192,16 @@ def create_final_env_file(temp_dir: str, data: RequestPayload):
         content = content.replace('BOOTSTRAP_TOKEN=', f'BOOTSTRAP_TOKEN={data.BOOTSTRAP_TOKEN}')
         # Add a placeholder for OWNER_ADMIN_ID to your template.env if you need it
         content = content.replace('OWNER_ADMIN_ID=', f'OWNER_ADMIN_ID={data.OWNER_ADMIN_ID}')
+<<<<<<< HEAD
+=======
+        
+        print(data.BOOTSTRAP_TOKEN)
+        print(data.OWNER_ADMIN_ID)
+        print(data.INITIAL_PARENT_IP)
+        print(data.LSC_MAC_ADDRESS)
+        print(data.PARENT_SERVER_ID)
+
+>>>>>>> develop
 
         # Write the modified content to the new .env file in the temp directory
         with open(final_env_path, 'w') as f:

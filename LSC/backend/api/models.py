@@ -1,4 +1,5 @@
 from django.db import models
+<<<<<<< HEAD
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 import uuid
 from django.utils import timezone
@@ -6,6 +7,20 @@ from .managers import AdminManager
 
 class SyncableModel(models.Model):
     last_modified = models.DateTimeField(auto_now=True)
+=======
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+import uuid
+from django.utils import timezone  # <-- Make sure timezone is imported
+from .managers import AdminManager 
+
+class SyncableModel(models.Model):
+    # This change is the core of the fix.
+    # 'auto_now=True' is replaced with 'default=timezone.now'
+    # This allows us to set the timestamp manually during a sync_down,
+    # while still providing a default for new local creations.
+    last_modified = models.DateTimeField(default=timezone.now)
+    
+>>>>>>> develop
     last_modified_by = models.UUIDField(null=True, blank=True)
     source_device_id = models.UUIDField(null=True, blank=True)
     version = models.IntegerField(default=1)
@@ -26,7 +41,11 @@ class Admin(AbstractBaseUser, SyncableModel, HierarchicalModel, PermissionsMixin
     parent_admin_id = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='children')
     layer = models.IntegerField(default=0)
     license = models.ForeignKey('LicenseKey', on_delete=models.CASCADE, null=True, blank=True, related_name='admins')
+<<<<<<< HEAD
     server = models.ForeignKey('Server', on_delete=models.CASCADE, null=True, blank=True)
+=======
+    server = models.OneToOneField('Server', on_delete=models.SET_NULL, null=True, blank=True) # Recommended change
+>>>>>>> develop
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
@@ -104,10 +123,13 @@ class Server(SyncableModel):
     def __str__(self):
         return f"{self.server_name or self.hostname or str(self.server_id)}"
 
+<<<<<<< HEAD
 # ---
 # 3. Enhanced Devices Model
 # ---
 
+=======
+>>>>>>> develop
 class Device(SyncableModel):
     device_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     device_name = models.CharField(max_length=255)
@@ -117,28 +139,40 @@ class Device(SyncableModel):
     last_seen = models.DateTimeField(auto_now=True)
     current_logged_in_user_id = models.UUIDField(null=True, blank=True)
     
+<<<<<<< HEAD
     # Enhanced device information
+=======
+>>>>>>> develop
     device_type = models.CharField(max_length=100, blank=True, help_text="Desktop, Laptop, Server, etc.")
     manufacturer = models.CharField(max_length=255, blank=True)
     model = models.CharField(max_length=255, blank=True)
     serial_number = models.CharField(max_length=255, blank=True)
     
+<<<<<<< HEAD
     # Hardware specs
+=======
+>>>>>>> develop
     processor = models.CharField(max_length=255, blank=True)
     ram_gb = models.FloatField(null=True, blank=True)
     storage_gb = models.FloatField(null=True, blank=True)
     
+<<<<<<< HEAD
     # Network info specific to device
+=======
+>>>>>>> develop
     ip_addresses = models.JSONField(default=list, blank=True)
     mac_addresses = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return self.device_name
 
+<<<<<<< HEAD
 # ---
 # 10. Group Model
 # ---
 
+=======
+>>>>>>> develop
 class Group(SyncableModel):
     group_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     group_name = models.CharField(max_length=255, unique=True)
@@ -149,10 +183,13 @@ class Group(SyncableModel):
     def __str__(self):
       return self.group_name
 
+<<<<<<< HEAD
 # ---
 # 4. Users Model (Updated)
 # ---
 
+=======
+>>>>>>> develop
 class User(SyncableModel, HierarchicalModel):
    user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
    username = models.CharField(max_length=255, unique=True)
@@ -165,11 +202,14 @@ class User(SyncableModel, HierarchicalModel):
    def __str__(self):
     return self.username
 
+<<<<<<< HEAD
 
 # ---
 # 5. Policies Model
 # ---
 
+=======
+>>>>>>> develop
 class Policy(SyncableModel):
     policy_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     policy_name = models.CharField(max_length=255)
@@ -180,10 +220,13 @@ class Policy(SyncableModel):
     def __str__(self):
         return self.policy_name
 
+<<<<<<< HEAD
 # ---
 # 6. Threats Model
 # ---
 
+=======
+>>>>>>> develop
 class Threat(SyncableModel):
     STATUS_CHOICES = [
         ('Detected', 'Detected'),
@@ -199,10 +242,13 @@ class Threat(SyncableModel):
     def __str__(self):
         return self.threat_name
 
+<<<<<<< HEAD
 # ---
 # 7. User Photos Model
 # ---
 
+=======
+>>>>>>> develop
 class UserPhoto(SyncableModel):
     photo_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.ForeignKey('User', on_delete=models.CASCADE)
@@ -214,10 +260,13 @@ class UserPhoto(SyncableModel):
     def __str__(self):
         return str(self.photo_id)
 
+<<<<<<< HEAD
 # ---
 # 8. Data Integrity Log Model
 # ---
 
+=======
+>>>>>>> develop
 class DataIntegrityLog(SyncableModel):
     log_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     device_id = models.ForeignKey('Device', on_delete=models.CASCADE)
@@ -229,11 +278,15 @@ class DataIntegrityLog(SyncableModel):
     def __str__(self):
         return str(self.log_id)
         
+<<<<<<< HEAD
 # ---
 # 9. LicenseKey Model
 # ---
 
 class LicenseKey(models.Model):
+=======
+class LicenseKey(SyncableModel):
+>>>>>>> develop
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     key = models.CharField(max_length=255, unique=True)
     is_active = models.BooleanField(default=False)
@@ -243,7 +296,10 @@ class LicenseKey(models.Model):
     def __str__(self):
         return self.key
 
+<<<<<<< HEAD
 # --- New Sync Log Model ---
+=======
+>>>>>>> develop
 class SyncLog(models.Model):
     log_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     admin = models.ForeignKey('Admin', on_delete=models.SET_NULL, null=True, blank=True)
@@ -253,8 +309,11 @@ class SyncLog(models.Model):
     def __str__(self):
         return f"Sync log from {self.admin.username} at {self.timestamp.isoformat()}"
     
+<<<<<<< HEAD
 
 # --- NEW MODEL ---
+=======
+>>>>>>> develop
 class BootstrapToken(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)

@@ -5,6 +5,10 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 MODEL_MAP = {
+<<<<<<< HEAD
+=======
+    'LicenseKey': LicenseKey,
+>>>>>>> develop
     'Admin': Admin,
     'User': User,
     'Device': Device,
@@ -13,11 +17,18 @@ MODEL_MAP = {
     'Threat': Threat,
     'UserPhoto': UserPhoto,
     'DataIntegrityLog': DataIntegrityLog,
+<<<<<<< HEAD
     'LicenseKey': LicenseKey,
+=======
+>>>>>>> develop
     'SyncLog': SyncLog,
     'Group': Group,
 }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> develop
 class SyncItemSerializer(serializers.Serializer):
     model_name = serializers.CharField()
     data = serializers.JSONField()
@@ -123,31 +134,127 @@ class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = '__all__'
+<<<<<<< HEAD
         read_only_fields = ['group_id','parent_admin_id']
+=======
+        read_only_fields = ['group_id']
+>>>>>>> develop
 
 class ServerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Server
         fields = '__all__'
 
+<<<<<<< HEAD
+=======
+# class ServerSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Server
+#         # Explicitly list all fields to avoid the '__all__' bug with reverse relations
+#         fields = [
+#             'server_id',
+#             'server_type',
+#             'parent_server',
+#             'is_connected',
+#             'last_heartbeat',
+#             'licence_key',
+#             'server_name',
+#             'hostname',
+#             'domain',
+#             'workgroup',
+#             'api_key',
+#             'os_name',
+#             'os_version',
+#             'os_architecture',
+#             'os_build',
+#             'cpu_info',
+#             'total_ram_gb',
+#             'available_storage_gb',
+#             'ip_address',
+#             'mac_address',
+#             'network_interfaces',
+#             'dns_servers',
+#             'default_gateway',
+#             'system_uuid',
+#             'current_user',
+#             'user_profile_path',
+#             'is_admin_user',
+#             'antivirus_status',
+#             'firewall_status',
+#             'last_boot_time',
+#             'uptime_hours',
+#             'owner_admin',
+#             'auto_detected',
+#             'detection_timestamp',
+#             'last_info_update',
+#             # SyncableModel fields
+#             'last_modified',
+#             'last_modified_by',
+#             'source_device_id',
+#             'version',
+#             'is_deleted',
+#         ]
+
+>>>>>>> develop
 class DeviceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Device
         fields = '__all__'
 
+<<<<<<< HEAD
 class UserDetailSerializer(serializers.ModelSerializer):
     """
     Serializer for retrieving and updating user details.
     Allows manipulation of the user's group memberships.
+=======
+# class UserDetailSerializer(serializers.ModelSerializer):
+#     """
+#     Serializer for retrieving and updating user details.
+#     Allows manipulation of the user's group memberships.
+#     """
+#     groups = serializers.PrimaryKeyRelatedField(
+#         many=True,
+#         queryset=Group.objects.all(),
+#         required=False  # Make this field optional for updates
+#     )
+    
+#     class Meta:
+#         model = User
+#         fields = ['user_id', 'username', 'email', 'parent_admin_id', 'groups','license','source_device_id']
+#         read_only_fields = ['user_id'] 
+
+#     def update(self, instance, validated_data):
+#         # Handle the many-to-many relationship for groups
+#         groups_data = validated_data.pop('groups', None)
+
+#         # Update the user's other fields
+#         instance = super().update(instance, validated_data)
+
+#         if groups_data is not None:
+#             instance.groups.set(groups_data)  # .set() method handles adding/removing groups
+        
+#         return instance
+
+
+class UserDetailSerializer(serializers.ModelSerializer):
+    """
+    Serializer for retrieving and updating user details.
+    This version explicitly lists all fields to prevent the '__all__' bug.
+>>>>>>> develop
     """
     groups = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Group.objects.all(),
+<<<<<<< HEAD
         required=False  # Make this field optional for updates
+=======
+        required=False
+>>>>>>> develop
     )
     
     class Meta:
         model = User
+<<<<<<< HEAD
         fields = ['user_id', 'username', 'email', 'parent_admin_id', 'groups']
         read_only_fields = ['user_id', 'parent_admin_id']
 
@@ -163,6 +270,27 @@ class UserDetailSerializer(serializers.ModelSerializer):
         
         return instance
 
+=======
+        # Explicitly list all fields
+        fields = [
+            'user_id', 'username', 'email', 'parent_admin_id', 
+            'associated_device_ids', 'license', 'groups',
+            # SyncableModel fields
+            'last_modified', 'last_modified_by', 'source_device_id', 
+            'version', 'is_deleted'
+        ]
+        # read_only_fields = ['user_id']
+
+    def update(self, instance, validated_data):
+        # Your existing update logic here is correct and remains the same
+        groups_data = validated_data.pop('groups', None)
+        instance = super().update(instance, validated_data)
+        if groups_data is not None:
+            instance.groups.set(groups_data)
+        return instance
+    
+    
+>>>>>>> develop
 class AdminProfileSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
@@ -234,9 +362,12 @@ class HierarchicalServerSerializer(serializers.ModelSerializer):
         """
         return obj.server_name or obj.hostname or str(obj.server_id)
     
+<<<<<<< HEAD
 # api/serializers.py
 
 # ... (add with your other serializers)
+=======
+>>>>>>> develop
 class BootstrapTokenSerializer(serializers.ModelSerializer):
     """
     Serializer for creating and displaying Bootstrap Tokens.
@@ -249,3 +380,37 @@ class BootstrapTokenSerializer(serializers.ModelSerializer):
         model = BootstrapToken
         fields = ['id', 'token', 'is_used', 'date_created', 'created_by']
         read_only_fields = ['id', 'token', 'is_used', 'date_created', 'created_by']
+<<<<<<< HEAD
+=======
+
+
+class LicenseKeySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LicenseKey
+        fields = '__all__'
+
+class AdminSyncSerializer(serializers.ModelSerializer):
+    """
+    Serializer for synchronizing the full Admin object, including the password hash.
+    This is ONLY for the trusted, server-to-server sync process.
+    """
+    class Meta:
+        model = Admin
+        # This explicitly includes the hashed password field for syncing
+        fields = [
+            'admin_id', 'username', 'email', 'parent_admin_id', 'layer', 
+            'license', 'server', 'is_active', 'is_staff', 'is_superuser', 
+            'last_login', 'date_joined', 'password',  # The hash is included here
+            'last_modified', 'last_modified_by', 'source_device_id', 
+            'version', 'is_deleted'
+        ]
+
+SERIALIZER_MAP = {
+    'Admin': AdminSyncSerializer, # Or another appropriate admin serializer
+    'User': UserDetailSerializer,
+    'Device': DeviceSerializer,
+    'Server': ServerSerializer,
+    'Group': GroupSerializer,
+    'LicenseKey': LicenseKeySerializer,
+}
+>>>>>>> develop

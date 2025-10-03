@@ -22,6 +22,16 @@ class ApiService {
 
   static const bool isDevelopment = false;
 
+<<<<<<< HEAD
+=======
+  List<dynamic> _filterDeletedItems(List<dynamic> items) {
+  return items.where((item) {
+    final isDeleted = item['is_deleted'] == 1 || item['is_deleted'] == true;
+    return !isDeleted;
+  }).toList();
+}
+
+>>>>>>> develop
   Future<bool> checkLicenseStatus() async {
     String? accessToken = await _storage.read(key: 'access_token');
 
@@ -138,7 +148,12 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
+<<<<<<< HEAD
       return data.map((json) => Admin.fromJson(json)).toList();
+=======
+      final filteredData = _filterDeletedItems(data);
+      return filteredData.map((json) => Admin.fromJson(json)).toList();
+>>>>>>> develop
     } else {
       throw Exception('Failed to load groups: ${response.statusCode}');
     }
@@ -176,7 +191,12 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
+<<<<<<< HEAD
       return data.map((json) => Group.fromJson(json)).toList();
+=======
+      final filteredData = _filterDeletedItems(data);
+      return filteredData.map((json) => Group.fromJson(json)).toList();
+>>>>>>> develop
     } else {
       throw Exception('Failed to load groups: ${response.statusCode}');
     }
@@ -192,9 +212,16 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
+<<<<<<< HEAD
 
       // Use .where() to filter the list
       return data
+=======
+      final filteredData = _filterDeletedItems(data);
+
+      // Use .where() to filter the list
+      return filteredData
+>>>>>>> develop
           .where((userJson) {
             final groups = userJson['groups'];
             // Check if 'groups' is a List and if it contains the groupId
@@ -219,7 +246,12 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
+<<<<<<< HEAD
       final allUsers = data.map((json) => User.fromJson(json)).toList();
+=======
+      final filteredData = _filterDeletedItems(data);
+      final allUsers = filteredData.map((json) => User.fromJson(json)).toList();
+>>>>>>> develop
       // Filter for users where the 'groups' list is empty or null
       return allUsers
           .where((user) => user.groups == null || user.groups!.isEmpty)

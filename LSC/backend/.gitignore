@@ -1,4 +1,4 @@
-virt/
+
 db.sqlite3/
 dist/
 bd*

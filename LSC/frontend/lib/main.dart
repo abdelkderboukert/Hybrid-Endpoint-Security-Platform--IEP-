@@ -7,6 +7,10 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+<<<<<<< HEAD
+=======
+import 'package:flutter/foundation.dart';
+>>>>>>> develop
 
 final Map<String, String> env = {};
 
@@ -87,6 +91,7 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
+<<<<<<< HEAD
   Future<void> _setupAndRunBackend() async {
     // 1. Define paths for extraction
     final appSupportDir = await getApplicationSupportDirectory();
@@ -130,6 +135,128 @@ class _MyAppState extends State<MyApp> {
       );
 
       // Optional: Listen to backend output for debugging
+=======
+  // Future<void> _setupAndRunBackend() async {
+  //   // 1. Define paths for extraction
+  //   final appSupportDir = await getApplicationSupportDirectory();
+  //   final backendDir = Directory(p.join(appSupportDir.path, 'backend'));
+  //   final backendExe = File(
+  //     p.join(backendDir.path, 'DSEC_Local_Server.exe'),
+  //   ); // Make sure this name is correct
+
+  //   // 2. Extract backend from assets if it's not already there
+  //   if (!await backendExe.exists()) {
+  //     print("Backend not found. Extracting from assets...");
+
+  //     final manifestContent = await rootBundle.loadString('AssetManifest.json');
+  //     final Map<String, dynamic> manifestMap = json.decode(manifestContent);
+
+  //     final assetPaths = manifestMap.keys
+  //         .where((String key) => key.startsWith('assets/backend/'))
+  //         .toList();
+
+  //     for (final assetPath in assetPaths) {
+  //       final relativePath = assetPath.replaceFirst('assets/backend/', '');
+  //       final file = File(p.join(backendDir.path, relativePath));
+
+  //       await file.parent.create(recursive: true);
+
+  //       final assetData = await rootBundle.load(assetPath);
+  //       await file.writeAsBytes(assetData.buffer.asUint8List());
+  //       print("Extracted: ${file.path}");
+  //     }
+  //   } else {
+  //     print("Backend already extracted.");
+  //   }
+
+  //   // 3. Run the backend executable
+  //   try {
+  //     print("Starting backend at: ${backendExe.path}");
+  //     _backendProcess = await Process.start(
+  //       backendExe.path,
+  //       [],
+  //       workingDirectory: backendDir.path, // Set working directory
+  //     );
+
+  //     // Optional: Listen to backend output for debugging
+  //     _backendProcess?.stdout
+  //         .transform(utf8.decoder)
+  //         .listen((data) => print("Backend STDOUT: ${data.trim()}"));
+  //     _backendProcess?.stderr
+  //         .transform(utf8.decoder)
+  //         .listen((data) => print("Backend STDERR: ${data.trim()}"));
+  //   } catch (e) {
+  //     print("Error starting backend process: $e");
+  //   }
+  // }
+
+  Future<void> _setupAndRunBackend() async {
+    File backendExe;
+    String workingDir;
+
+    // This logic runs ONLY when the app is built in release mode
+    if (kReleaseMode) {
+      print(
+        "App is in release mode. Finding backend relative to executable...",
+      );
+      // Get the directory of the running frontend.exe
+      final exePath = Platform.resolvedExecutable;
+      final exeDir = p.dirname(exePath);
+
+      // Construct the path to the backend based on your Inno Setup structure
+      final backendPath = p.join(
+        exeDir,
+        'data',
+        'flutter_assets',
+        'assets',
+        'backend',
+        'DSEC_Local_Server.exe',
+      );
+      backendExe = File(backendPath);
+      workingDir = p.dirname(backendPath);
+    } else {
+      // This is your original logic, which will run in debug mode (F5)
+      print("App is in debug mode. Extracting backend...");
+      final appSupportDir = await getApplicationSupportDirectory();
+      final backendDir = Directory(p.join(appSupportDir.path, 'backend'));
+      backendExe = File(p.join(backendDir.path, 'DSEC_Local_Server.exe'));
+      workingDir = backendDir.path;
+
+      if (!await backendExe.exists()) {
+        final manifestContent = await rootBundle.loadString(
+          'AssetManifest.json',
+        );
+        final Map<String, dynamic> manifestMap = json.decode(manifestContent);
+        final assetPaths = manifestMap.keys
+            .where((String key) => key.startsWith('assets/backend/'))
+            .toList();
+        for (final assetPath in assetPaths) {
+          final relativePath = assetPath.replaceFirst('assets/backend/', '');
+          final file = File(p.join(backendDir.path, relativePath));
+          await file.parent.create(recursive: true);
+          final assetData = await rootBundle.load(assetPath);
+          await file.writeAsBytes(assetData.buffer.asUint8List());
+        }
+      }
+    }
+
+    // Now, run the backend from the correct location
+    try {
+      if (!await backendExe.exists()) {
+        print(
+          "❌ CRITICAL ERROR: Backend executable not found at ${backendExe.path}",
+        );
+        return;
+      }
+      print("✅ Starting backend at: ${backendExe.path}");
+      print("📂 Setting working directory to: $workingDir");
+      _backendProcess = await Process.start(
+        backendExe.path,
+        [],
+        workingDirectory: workingDir,
+      );
+
+>>>>>>> develop
       _backendProcess?.stdout
           .transform(utf8.decoder)
           .listen((data) => print("Backend STDOUT: ${data.trim()}"));
@@ -137,7 +264,11 @@ class _MyAppState extends State<MyApp> {
           .transform(utf8.decoder)
           .listen((data) => print("Backend STDERR: ${data.trim()}"));
     } catch (e) {
+<<<<<<< HEAD
       print("Error starting backend process: $e");
+=======
+      print("❌ Error starting backend process: $e");
+>>>>>>> develop
     }
   }
 
