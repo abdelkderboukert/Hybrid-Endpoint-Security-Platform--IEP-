@@ -328,7 +328,6 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist', # For logout
     'corsheaders',
     'api',
-    'django_celery_beat',
     'django_apscheduler',
     
 ]

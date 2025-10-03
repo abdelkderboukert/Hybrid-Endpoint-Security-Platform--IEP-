@@ -8,7 +8,7 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-set VIRTUAL_ENV=C:\Users\HP\rebo\3LayersUntiVirus\LSC\backend\virt
+set VIRTUAL_ENV=C:\Users\HP\rebo\Hybrid-Endpoint-Security-Platform--IEP-\LSC\backend\virt
 
 if not defined PROMPT set PROMPT=$P$G
 
