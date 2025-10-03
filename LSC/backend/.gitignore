@@ -3,6 +3,7 @@ virt/
 dist/
 bd*
 build/
+*.sqlite3
 
 .env
 

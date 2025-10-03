@@ -416,8 +416,7 @@ class MasterSyncAPIView(APIView):
                 if not sync_item_serializer.is_valid():
                     processed_responses.append({
                         'temp_id': item.get('temp_id', None),
-                        'status': 'error',
-                        'errors': sync_item_serializer.errors
+                        'status': 'error', 'errors': sync_item_serializer.errors
                     })
                     continue
 
@@ -440,14 +439,23 @@ class MasterSyncAPIView(APIView):
                         processed_responses.append({'status': 'error', 'message': f"Missing primary key for model {model_name}."})
                         continue
 
-                    # --- Step 2: Separate Relational and Non-Relational Data ---
-                    non_relational_data = {}
+                    instance = Model.objects.filter(pk=record_id).first()
+
+                    # --- Step 2: Handle Echo and Stale Data ---
+                    if instance and str(instance.source_device_id) == requesting_server_id:
+                        processed_responses.append({'id': str(record_id), 'status': 'ignored_echo'})
+                        continue
+                    if instance and client_last_modified and client_last_modified <= instance.last_modified:
+                        processed_responses.append({'id': str(record_id), 'status': 'stale'})
+                        continue
+                        
+                    # --- Step 3: Separate Data for Safe Creation/Update ---
                     fk_ids = {}
                     m2m_ids = {}
-                    
+                    non_relational_data = {}
+
                     for key, value in data.items():
                         if key == pk_field_name: continue
-                        
                         try:
                             field = Model._meta.get_field(key)
                             if isinstance(field, (models.ForeignKey, models.OneToOneField)):
@@ -457,53 +465,52 @@ class MasterSyncAPIView(APIView):
                             else:
                                 non_relational_data[key] = value
                         except models.FieldDoesNotExist:
-                            pass # Ignore fields not in the model (like 'password2')
+                            pass
                     
-                    # --- Step 3: Intelligent Create/Update of the Base Object ---
-                    instance, created = Model.objects.get_or_create(
+                    # --- Step 4: Intelligent Create/Update of the Base Object ---
+                    # Use the non-relational data for the initial creation to avoid FK errors
+                    obj, created = Model.objects.get_or_create(
                         pk=record_id,
                         defaults=non_relational_data
                     )
 
-                    # --- Step 4: Apply Relationships and Finalize ---
-                    # Combine all updates into one dictionary
-                    all_updates = {**fk_ids}
-                    
-                    # Stamp the record with metadata
-                    all_updates['last_modified_by'] = user.admin_id
-                    all_updates['source_device_id'] = requesting_server_id
-                    all_updates['last_modified'] = timezone.now()
-                    
-                    if not created: # If the object already existed
-                        # Update all non-relational fields
+                    # --- Step 5: Apply All Other Fields and Metadata ---
+                    if not created: # If it existed, update the non-relational fields
                         for key, value in non_relational_data.items():
-                            setattr(instance, key, value)
-                        all_updates['version'] = instance.version + 1
+                            setattr(obj, key, value)
                     
-                    # Apply all FK updates in a single efficient query
-                    Model.objects.filter(pk=record_id).update(**all_updates)
+                    # Apply Foreign Keys
+                    for key, value in fk_ids.items():
+                        setattr(obj, key, value)
+                    
+                    # Stamp with metadata
+                    obj.last_modified_by = user.admin_id
+                    obj.source_device_id = requesting_server_id
+                    
+                    # CRITICAL FIX: Respect the client's timestamp
+                    obj.last_modified = client_last_modified
+                    
+                    if not created:
+                        obj.version += 1
 
-                    # Handle M2M relationships separately after the instance is saved
+                    obj.save() # Save all FKs, metadata, and non-relational updates
+                    
+                    # Apply M2M fields after the object is fully saved
                     if m2m_ids:
-                        instance.refresh_from_db() # Ensure we have the latest version
                         for field_name, value_list in m2m_ids.items():
-                            manager = getattr(instance, field_name)
+                            manager = getattr(obj, field_name)
                             manager.set(value_list)
                     
                     if created:
-                        processed_responses.append({'status': 'created', 'permanent_id': str(instance.pk)})
+                        processed_responses.append({'status': 'created', 'permanent_id': str(obj.pk)})
                     else:
-                        processed_responses.append({'id': str(instance.pk), 'status': 'updated'})
+                        processed_responses.append({'id': str(obj.pk), 'status': 'updated'})
 
-                except IntegrityError as e:
-                    logger.error(f"Integrity error on sync_up for {model_name} with ID {record_id}: {e}", exc_info=True)
-                    processed_responses.append({'id': record_id, 'status': 'error', 'message': f'IntegrityError: {e}'})
                 except Exception as e:
                     logger.error(f"Error processing sync_up for {model_name} with ID {record_id}: {e}", exc_info=True)
                     processed_responses.append({'id': record_id, 'status': 'error', 'message': str(e)})
                     
         return processed_responses
-    
     def process_sync_down(self, last_sync_timestamp, user):
         sync_down_list = []
         
