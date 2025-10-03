@@ -130,88 +130,11 @@ class ServerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Server
         fields = '__all__'
-
-# class ServerSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Server
-#         # Explicitly list all fields to avoid the '__all__' bug with reverse relations
-#         fields = [
-#             'server_id',
-#             'server_type',
-#             'parent_server',
-#             'is_connected',
-#             'last_heartbeat',
-#             'licence_key',
-#             'server_name',
-#             'hostname',
-#             'domain',
-#             'workgroup',
-#             'api_key',
-#             'os_name',
-#             'os_version',
-#             'os_architecture',
-#             'os_build',
-#             'cpu_info',
-#             'total_ram_gb',
-#             'available_storage_gb',
-#             'ip_address',
-#             'mac_address',
-#             'network_interfaces',
-#             'dns_servers',
-#             'default_gateway',
-#             'system_uuid',
-#             'current_user',
-#             'user_profile_path',
-#             'is_admin_user',
-#             'antivirus_status',
-#             'firewall_status',
-#             'last_boot_time',
-#             'uptime_hours',
-#             'owner_admin',
-#             'auto_detected',
-#             'detection_timestamp',
-#             'last_info_update',
-#             # SyncableModel fields
-#             'last_modified',
-#             'last_modified_by',
-#             'source_device_id',
-#             'version',
-#             'is_deleted',
-#         ]
-
+        
 class DeviceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Device
         fields = '__all__'
-
-# class UserDetailSerializer(serializers.ModelSerializer):
-#     """
-#     Serializer for retrieving and updating user details.
-#     Allows manipulation of the user's group memberships.
-#     """
-#     groups = serializers.PrimaryKeyRelatedField(
-#         many=True,
-#         queryset=Group.objects.all(),
-#         required=False  # Make this field optional for updates
-#     )
-    
-#     class Meta:
-#         model = User
-#         fields = ['user_id', 'username', 'email', 'parent_admin_id', 'groups','license','source_device_id']
-#         read_only_fields = ['user_id'] 
-
-#     def update(self, instance, validated_data):
-#         # Handle the many-to-many relationship for groups
-#         groups_data = validated_data.pop('groups', None)
-
-#         # Update the user's other fields
-#         instance = super().update(instance, validated_data)
-
-#         if groups_data is not None:
-#             instance.groups.set(groups_data)  # .set() method handles adding/removing groups
-        
-#         return instance
-
 
 class UserDetailSerializer(serializers.ModelSerializer):
     """
@@ -351,11 +274,24 @@ class AdminSyncSerializer(serializers.ModelSerializer):
             'version', 'is_deleted'
         ]
 
+class PolicySerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating, retrieving, and updating Policy objects.
+    """
+    class Meta:
+        model = Policy
+        fields = '__all__'
+        read_only_fields = [
+            'policy_id', 
+            'created_by_admin_id'
+        ]
+
 SERIALIZER_MAP = {
     'Admin': AdminSyncSerializer, # Or another appropriate admin serializer
     'User': UserDetailSerializer,
     'Device': DeviceSerializer,
     'Server': ServerSerializer,
     'Group': GroupSerializer,
+    'Policy': PolicySerializer,
     'LicenseKey': LicenseKeySerializer,
 }
